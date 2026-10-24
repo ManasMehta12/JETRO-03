@@ -23,9 +23,9 @@ Startup creates SQLite tables, checks schema version and installs the immutable-
 ## Demo
 ```sh
 uv run python scripts/seed_demo.py --state approved_baseline
-uv run python scripts/demo_flow.py --base-url http://localhost:8765
+uv run python scripts/demo_flow.py --base-url http://localhost:8000
 ```
-The flow requires a running server on its selected port. It logs 16 successful steps, resets only `task_001`, submits an expert answer, publishes and proves the answer is cited. The live smoke used port 8765 and an isolated temporary SQLite database. All mechanical example content is illustrative, not a validated procedure.
+The flow requires a running server (see Start). It logs 16 successful steps, resets only `task_001`, submits an expert answer, publishes and proves the answer is cited. All mechanical example content is illustrative, not a validated procedure.
 
 ## Reset
 ```sh
