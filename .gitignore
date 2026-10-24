@@ -1,0 +1,28 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+# Node and browser checks
+node_modules/
+.next/
+*.tsbuildinfo
+out/
+coverage/
+playwright-report/
+test-results/
+# Runtime state
+var/
+data/
+*.db
+*.db-shm
+*.db-wal
+# OS/editor
+.DS_Store
+.vscode/

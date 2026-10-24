@@ -1,0 +1,5 @@
+# Optional production adapters and PDF renderer. Install after base requirements.
+pypdf==5.4.0
+boto3==1.38.19
+playwright==1.52.0
+celery[redis]==5.5.2

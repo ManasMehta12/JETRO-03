@@ -2,8 +2,8 @@
   "openapi": "3.0.3",
   "info": {
     "title": "Takumi Apprentice Playground",
-    "version": "1.0.0",
-    "description": "Proposed hackathon contract. See component plan and README for state, fixture and role invariants. All errors are JSON. No deployed implementation is implied."
+    "version": "2.0.0",
+    "description": "Technical Viva v2 contract and adjacent Studio/Playground interfaces. The repository implements Viva and scoped source resolution; Studio authoring and Playground execution remain adjacent component plans. See the implementation coverage document. All errors are JSON."
   },
   "servers": [
     {
@@ -75,8 +75,28 @@
               }
             }
           },
+          "413": {
+            "description": "Request body too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Invalid request or unknown referenced value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or usage limit",
             "content": {
               "application/json": {
                 "schema": {
@@ -144,8 +164,28 @@
               }
             }
           },
+          "413": {
+            "description": "Request body too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Invalid request or unknown referenced value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or usage limit",
             "content": {
               "application/json": {
                 "schema": {
@@ -254,8 +294,28 @@
               }
             }
           },
+          "413": {
+            "description": "Request body too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Invalid request or unknown referenced value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or usage limit",
             "content": {
               "application/json": {
                 "schema": {
@@ -334,8 +394,28 @@
               }
             }
           },
+          "413": {
+            "description": "Request body too large",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "422": {
             "description": "Invalid request or unknown referenced value",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate or usage limit",
             "content": {
               "application/json": {
                 "schema": {
@@ -455,6 +535,13 @@
           "media_id": {
             "type": "string",
             "minLength": 1
+          },
+          "document_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locator": {
+            "type": "string"
           },
           "start_ms": {
             "type": "integer",
@@ -743,6 +830,12 @@
             "items": {
               "$ref": "#/components/schemas/Evidence"
             }
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceDocument"
+            }
           }
         },
         "required": [
@@ -752,7 +845,8 @@
           "reviewer_id",
           "approved_at",
           "units",
-          "evidence"
+          "evidence",
+          "documents"
         ]
       },
       "Scenario": {
@@ -989,6 +1083,87 @@
           "outcome"
         ]
       },
+      "SourceDocument": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "checksum": {
+            "type": "string"
+          },
+          "media_type": {
+            "type": "string"
+          },
+          "resolver_url": {
+            "type": "string"
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "availability": {
+            "type": "string",
+            "enum": [
+              "available",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "version",
+          "checksum",
+          "media_type",
+          "resolver_url",
+          "evidence_ids",
+          "availability"
+        ]
+      },
+      "SourceReference": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "release_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "document_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "evidence_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locator": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "release_id",
+          "document_id",
+          "evidence_id",
+          "locator",
+          "excerpt"
+        ]
+      },
       "VivaQuestion": {
         "type": "object",
         "additionalProperties": false,
@@ -997,34 +1172,143 @@
             "type": "string",
             "minLength": 1
           },
+          "objective": {
+            "type": "string",
+            "enum": [
+              "explanation",
+              "changed_condition",
+              "limits"
+            ]
+          },
           "prompt": {
             "type": "string"
           },
-          "options": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "additionalProperties": false,
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "label": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "label"
-              ]
-            }
+          "is_follow_up": {
+            "type": "boolean"
+          },
+          "parent_question_id": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
           "id",
+          "objective",
           "prompt",
-          "options"
+          "is_follow_up",
+          "parent_question_id"
+        ]
+      },
+      "InterviewTurn": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "question_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "speaker": {
+            "type": "string",
+            "enum": [
+              "learner",
+              "interviewer"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "input_mode": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "text"
+            ]
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "interrupted",
+              "unconfirmed"
+            ]
+          },
+          "replacement_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "quality_flag": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "question_id",
+          "speaker",
+          "text",
+          "input_mode",
+          "delivery",
+          "replacement_id",
+          "quality_flag",
+          "created_at"
+        ]
+      },
+      "QuestionCoverage": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "question_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "objective": {
+            "type": "string",
+            "enum": [
+              "explanation",
+              "changed_condition",
+              "limits"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "unanswered",
+              "answered",
+              "not_assessed"
+            ]
+          },
+          "answer_turn_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "follow_up_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "question_id",
+          "objective",
+          "status",
+          "answer_turn_ids",
+          "follow_up_count"
         ]
       },
       "VivaSession": {
@@ -1039,6 +1323,10 @@
             "type": "string",
             "minLength": 1
           },
+          "learner_id": {
+            "type": "string",
+            "minLength": 1
+          },
           "bundle_id": {
             "type": "string",
             "minLength": 1
@@ -1050,7 +1338,15 @@
             "type": "string",
             "minLength": 1
           },
-          "bank_version": {
+          "rubric_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prompt_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model_config_version": {
             "type": "string",
             "minLength": 1
           },
@@ -1061,8 +1357,26 @@
           "status": {
             "type": "string",
             "enum": [
+              "created",
+              "connecting",
               "in_progress",
-              "completed"
+              "paused",
+              "evaluating",
+              "completed",
+              "failed"
+            ]
+          },
+          "input_mode": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "text"
+            ]
+          },
+          "question_count": {
+            "type": "integer",
+            "enum": [
+              3
             ]
           },
           "answered_count": {
@@ -1070,11 +1384,10 @@
             "minimum": 0,
             "maximum": 3
           },
-          "question_count": {
+          "follow_up_count": {
             "type": "integer",
-            "enum": [
-              3
-            ]
+            "minimum": 0,
+            "maximum": 3
           },
           "current_question": {
             "allOf": [
@@ -1084,27 +1397,170 @@
             ],
             "nullable": true
           },
+          "last_event_sequence": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "evaluation_job_id": {
+            "type": "string",
+            "nullable": true
+          },
           "result_id": {
             "type": "string",
             "nullable": true
+          },
+          "active_seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "max_active_seconds": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "transcript": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewTurn"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
           "id",
           "attempt_id",
+          "learner_id",
           "bundle_id",
           "bundle_hash",
           "release_id",
-          "bank_version",
+          "rubric_version",
+          "prompt_version",
+          "model_config_version",
           "revision",
           "status",
-          "answered_count",
+          "input_mode",
           "question_count",
+          "answered_count",
+          "follow_up_count",
           "current_question",
-          "result_id"
+          "last_event_sequence",
+          "evaluation_job_id",
+          "result_id",
+          "active_seconds",
+          "max_active_seconds",
+          "transcript",
+          "created_at",
+          "expires_at"
         ]
       },
-      "AnswerResult": {
+      "EvaluationJob": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "session_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "completed",
+              "failed"
+            ]
+          },
+          "attempt_count": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3
+          },
+          "result_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "error_code": {
+            "type": "string",
+            "nullable": true
+          },
+          "retryable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "session_id",
+          "status",
+          "attempt_count",
+          "result_id",
+          "error_code",
+          "retryable"
+        ]
+      },
+      "RubricAssessment": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dimension": {
+            "type": "string",
+            "enum": [
+              "technical_correctness",
+              "explanation_quality",
+              "evidence_use",
+              "recognition_of_limits"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "assessed",
+              "not_assessed",
+              "needs_review"
+            ]
+          },
+          "score": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4,
+            "nullable": true
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "answer_turn_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
+            }
+          }
+        },
+        "required": [
+          "dimension",
+          "status",
+          "score",
+          "rationale",
+          "answer_turn_ids",
+          "sources"
+        ]
+      },
+      "QuestionAssessment": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
@@ -1112,37 +1568,62 @@
             "type": "string",
             "minLength": 1
           },
-          "option_id": {
-            "type": "string",
-            "minLength": 1
-          },
-          "reflection": {
-            "type": "string"
-          },
-          "feedback": {
-            "$ref": "#/components/schemas/Feedback"
-          },
-          "scores": {
+          "answer_turn_ids": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Dimension"
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "feedback": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceReference"
             }
           }
         },
         "required": [
           "question_id",
-          "option_id",
+          "answer_turn_ids",
           "feedback",
-          "scores"
+          "sources"
         ]
       },
-      "VivaResult": {
+      "ReportSource": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/SourceDocument"
+          },
+          "usage": {
+            "type": "string",
+            "enum": [
+              "cited",
+              "available_unused",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "document",
+          "usage"
+        ]
+      },
+      "VivaReport": {
         "type": "object",
         "additionalProperties": false,
         "properties": {
           "id": {
             "type": "string",
             "minLength": 1
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1
           },
           "session_id": {
             "type": "string",
@@ -1160,16 +1641,84 @@
             "type": "string",
             "minLength": 1
           },
-          "answers": {
+          "bundle_hash": {
+            "type": "string"
+          },
+          "rubric_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "prompt_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "model_config_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "snapshot_hash": {
+            "type": "string"
+          },
+          "completion": {
+            "type": "string",
+            "enum": [
+              "complete",
+              "incomplete"
+            ]
+          },
+          "finish_reason": {
+            "type": "string",
+            "enum": [
+              "questions_complete",
+              "learner_finished",
+              "time_limit",
+              "expired"
+            ]
+          },
+          "assessments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/AnswerResult"
+              "$ref": "#/components/schemas/RubricAssessment"
             }
           },
-          "viva_scores": {
+          "questions": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/Dimension"
+              "$ref": "#/components/schemas/QuestionAssessment"
+            }
+          },
+          "coverage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuestionCoverage"
+            }
+          },
+          "strengths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "misconceptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "missed_topics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recommendations": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           },
           "playground_scores": {
@@ -1181,22 +1730,372 @@
           "critical_error": {
             "type": "boolean"
           },
+          "transcript": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/InterviewTurn"
+            }
+          },
+          "source_index": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReportSource"
+            }
+          },
           "assessment_notice": {
             "type": "string"
           }
         },
         "required": [
           "id",
+          "version",
           "session_id",
           "attempt_id",
           "release_id",
           "bundle_id",
-          "answers",
-          "viva_scores",
+          "bundle_hash",
+          "rubric_version",
+          "prompt_version",
+          "model_config_version",
+          "created_at",
+          "snapshot_hash",
+          "completion",
+          "finish_reason",
+          "assessments",
+          "questions",
+          "coverage",
+          "strengths",
+          "misconceptions",
+          "missed_topics",
+          "recommendations",
           "playground_scores",
           "critical_error",
+          "transcript",
+          "source_index",
           "assessment_notice"
         ]
+      },
+      "SessionUpdatedEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "session_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "session_updated"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "session": {
+                "$ref": "#/components/schemas/VivaSession"
+              }
+            },
+            "required": [
+              "session"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "session_revision",
+          "type",
+          "created_at",
+          "payload"
+        ]
+      },
+      "TurnCommittedEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "session_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "turn_committed"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "turn": {
+                "$ref": "#/components/schemas/InterviewTurn"
+              }
+            },
+            "required": [
+              "turn"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "session_revision",
+          "type",
+          "created_at",
+          "payload"
+        ]
+      },
+      "QuestionPresentedEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "session_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "question_presented"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "question": {
+                "$ref": "#/components/schemas/VivaQuestion"
+              }
+            },
+            "required": [
+              "question"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "session_revision",
+          "type",
+          "created_at",
+          "payload"
+        ]
+      },
+      "EvaluationUpdatedEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "session_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "evaluation_updated"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "evaluation": {
+                "$ref": "#/components/schemas/EvaluationJob"
+              }
+            },
+            "required": [
+              "evaluation"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "session_revision",
+          "type",
+          "created_at",
+          "payload"
+        ]
+      },
+      "ErrorEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "session_revision": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "error"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "error": {
+                "$ref": "#/components/schemas/Error"
+              }
+            },
+            "required": [
+              "error"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "sequence",
+          "session_revision",
+          "type",
+          "created_at",
+          "payload"
+        ]
+      },
+      "PublicKnowledgeRelease": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string"
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "content_status": {
+            "type": "string",
+            "nullable": true
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SourceDocument"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "units": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          }
+        },
+        "required": [
+          "id",
+          "task_id",
+          "title",
+          "content_hash",
+          "content_status",
+          "documents",
+          "evidence",
+          "units"
+        ]
+      },
+      "SessionEvent": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/SessionUpdatedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/TurnCommittedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/QuestionPresentedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/EvaluationUpdatedEvent"
+          },
+          {
+            "$ref": "#/components/schemas/ErrorEvent"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type",
+          "mapping": {
+            "session_updated": "#/components/schemas/SessionUpdatedEvent",
+            "turn_committed": "#/components/schemas/TurnCommittedEvent",
+            "question_presented": "#/components/schemas/QuestionPresentedEvent",
+            "evaluation_updated": "#/components/schemas/EvaluationUpdatedEvent",
+            "error": "#/components/schemas/ErrorEvent"
+          }
+        }
       }
     }
   }

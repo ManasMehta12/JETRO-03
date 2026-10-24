@@ -4,7 +4,7 @@ Owner: Person A. Contract: [Studio OpenAPI](openapi/expert-studio.openapi.json).
 
 ## Scope and architecture
 
-This is the only real agentic implementation. An expert uploads a two to four minute clip, the worker extracts source-linked draft units, identifies reasoning gaps, asks up to three useful questions, incorporates actual answers, and proposes revisions. The expert corrects and approves the result. Nothing publishes through an agent tool.
+Studio is the expert-facing knowledge extraction and clarification agent. Viva has its own bounded live interview and evaluation flow. An expert uploads a two to four minute clip, the worker extracts source-linked draft units, identifies reasoning gaps, asks up to three useful questions, incorporates actual answers, and proposes revisions. The expert corrects and approves the result. Nothing publishes through an agent tool.
 
 ```mermaid
 flowchart TD
@@ -54,4 +54,4 @@ If extraction fails, retain the clip and prior stage, show the error and allow a
 
 Demonstrate a question grounded in a genuine missing reason; answer it with the instructor; show its new evidence ID and the changed draft; reject an unsupported specification; approve a release; open its original evidence. Verify invalid spans, cross-task IDs, stale edits, unauthorized publication, repeated upload/answer/publish requests and restart recovery. Record actual model latency and question/review time.
 
-Deliver B and C one seeded approved release, evidence records, source media, and a stable evidence-viewer contract by hour 10. Live outputs can vary; learner fixtures stay frozen until separately reviewed and versioned.
+Deliver B and C one seeded approved release, evidence records, source media, document manifest (identity/version/checksum/resolver/evidence membership), and a stable release-scoped evidence-viewer contract by hour 10. Live outputs can vary; learner fixtures stay frozen until separately reviewed and versioned.

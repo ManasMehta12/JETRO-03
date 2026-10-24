@@ -19,7 +19,7 @@ REV = integer(minimum=0)
 S = {
     'Error': obj({'code': string(), 'message': string(), 'details': {'type': 'object', 'additionalProperties': True}}),
     'Evidence': obj({'id': ID, 'task_id': ID, 'type': enum('video', 'expert_response'),
-        'author': string(), 'text': string(), 'media_id': ID,
+        'author': string(), 'text': string(), 'media_id': ID, 'document_id': ID, 'locator': string(),
         'start_ms': integer(minimum=0), 'end_ms': integer(minimum=1)}, ['id', 'task_id', 'type', 'author']),
     'Task': obj({'id': ID, 'title': string(), 'equipment_context': string(), 'language': string()}),
     'Unit': obj({'id': ID, **{key: string(nullable=True) for key in
@@ -36,7 +36,7 @@ S = {
         'questions': array(ref('Question')), 'evidence': array(ref('Evidence'))}),
     'Release': obj({'id': ID, 'task_id': ID, 'content_hash': string(),
         'reviewer_id': ID, 'approved_at': string(format='date-time'), 'units': array(ref('Unit')),
-        'evidence': array(ref('Evidence'))}),
+        'evidence': array(ref('Evidence')), 'documents': array(ref('SourceDocument'))}),
     'Scenario': obj({'id': ID, 'title': string(), 'version': ID, 'bundle_id': ID, 'release_id': ID,
         'scene_template': string(), 'component_ids': array(ID)}),
     'Action': obj({'id': ID, 'label': string(), 'target_id': ID}, ['id', 'label']),
@@ -51,20 +51,62 @@ S = {
         'available_actions': array(ref('Action')), 'observations': array(ref('Observation')),
         'feedback': array(ref('Feedback')), 'scores': array(ref('Dimension')),
         'critical_error': {'type': 'boolean'}, 'outcome': string(nullable=True)}),
-    'VivaQuestion': obj({'id': ID, 'prompt': string(), 'options': array(obj({'id': ID, 'label': string()}))}),
-    'VivaSession': obj({'id': ID, 'attempt_id': ID, 'bundle_id': ID, 'bundle_hash': string(),
-        'release_id': ID, 'bank_version': ID, 'revision': REV, 'status': enum('in_progress', 'completed'),
-        'answered_count': integer(minimum=0, maximum=3), 'question_count': integer(enum=[3]),
+    'SourceDocument': obj({'id': ID, 'title': string(), 'version': ID, 'checksum': string(),
+        'media_type': string(), 'resolver_url': string(), 'evidence_ids': array(ID),
+        'availability': enum('available', 'unavailable')}),
+    'SourceReference': obj({'release_id': ID, 'document_id': ID, 'evidence_id': ID,
+        'locator': string(), 'excerpt': string()}),
+    'VivaQuestion': obj({'id': ID, 'objective': enum('explanation', 'changed_condition', 'limits'),
+        'prompt': string(), 'is_follow_up': {'type': 'boolean'}, 'parent_question_id': string(nullable=True)}),
+    'InterviewTurn': obj({'id': ID, 'sequence': integer(minimum=1), 'question_id': string(nullable=True),
+        'speaker': enum('learner', 'interviewer'), 'text': string(), 'input_mode': enum('voice', 'text'),
+        'delivery': enum('completed', 'interrupted', 'unconfirmed'), 'replacement_id': string(nullable=True), 'quality_flag': string(nullable=True), 'created_at': string(format='date-time')}),
+    'QuestionCoverage': obj({'question_id': ID, 'objective': enum('explanation', 'changed_condition', 'limits'), 'status': enum('unanswered', 'answered', 'not_assessed'),
+        'answer_turn_ids': array(ID), 'follow_up_count': integer(minimum=0, maximum=1)}),
+    'VivaSession': obj({'id': ID, 'attempt_id': ID, 'learner_id': ID, 'bundle_id': ID, 'bundle_hash': string(),
+        'release_id': ID, 'rubric_version': ID, 'prompt_version': ID, 'model_config_version': ID,
+        'revision': REV, 'status': enum('created', 'connecting', 'in_progress', 'paused', 'evaluating', 'completed', 'failed'),
+        'input_mode': enum('voice', 'text'), 'question_count': integer(enum=[3]),
+        'answered_count': integer(minimum=0, maximum=3), 'follow_up_count': integer(minimum=0, maximum=3),
         'current_question': {'allOf': [ref('VivaQuestion')], 'nullable': True},
-        'result_id': string(nullable=True)}),
-    'AnswerResult': obj({'question_id': ID, 'option_id': ID, 'reflection': string(),
-        'feedback': ref('Feedback'), 'scores': array(ref('Dimension'))},
-        ['question_id', 'option_id', 'feedback', 'scores']),
-    'VivaResult': obj({'id': ID, 'session_id': ID, 'attempt_id': ID, 'release_id': ID,
-        'bundle_id': ID, 'answers': array(ref('AnswerResult')), 'viva_scores': array(ref('Dimension')),
+        'last_event_sequence': REV, 'evaluation_job_id': string(nullable=True), 'result_id': string(nullable=True),
+        'active_seconds': {'type':'number','minimum':0}, 'max_active_seconds': integer(minimum=1),
+        'transcript': array(ref('InterviewTurn')), 'created_at': string(format='date-time'), 'expires_at': string(format='date-time')}),
+    'EvaluationJob': obj({'id': ID, 'session_id': ID, 'status': enum('queued', 'running', 'completed', 'failed'),
+        'attempt_count': integer(minimum=0, maximum=3), 'result_id': string(nullable=True),
+        'error_code': string(nullable=True), 'retryable': {'type': 'boolean'}}),
+    'RubricAssessment': obj({'dimension': enum('technical_correctness', 'explanation_quality', 'evidence_use', 'recognition_of_limits'),
+        'status': enum('assessed', 'not_assessed', 'needs_review'), 'score': integer(minimum=0, maximum=4, nullable=True),
+        'rationale': string(), 'answer_turn_ids': array(ID), 'sources': array(ref('SourceReference'))}),
+    'QuestionAssessment': obj({'question_id': ID, 'answer_turn_ids': array(ID), 'feedback': string(),
+        'sources': array(ref('SourceReference'))}),
+    'ReportSource': obj({'document': ref('SourceDocument'), 'usage': enum('cited', 'available_unused', 'unavailable')}),
+    'VivaReport': obj({'id': ID, 'version': integer(minimum=1), 'session_id': ID, 'attempt_id': ID,
+        'release_id': ID, 'bundle_id': ID, 'bundle_hash': string(), 'rubric_version': ID,
+        'prompt_version': ID, 'model_config_version': ID, 'created_at': string(format='date-time'),
+        'snapshot_hash': string(), 'completion': enum('complete', 'incomplete'), 'finish_reason': enum('questions_complete', 'learner_finished', 'time_limit', 'expired'),
+        'assessments': array(ref('RubricAssessment')), 'questions': array(ref('QuestionAssessment')),
+        'coverage': array(ref('QuestionCoverage')), 'strengths': array(string()), 'misconceptions': array(string()),
+        'missed_topics': array(string()), 'recommendations': array(string()),
         'playground_scores': array(ref('Dimension')), 'critical_error': {'type': 'boolean'},
+        'transcript': array(ref('InterviewTurn')), 'source_index': array(ref('ReportSource')),
         'assessment_notice': string()})
 }
+
+# Closed event variants match the application's discriminated event payloads.
+_event_variants = []
+for _kind, _payload_name, _schema_name in [
+    ('session_updated', 'session', 'VivaSession'), ('turn_committed', 'turn', 'InterviewTurn'),
+    ('question_presented', 'question', 'VivaQuestion'), ('evaluation_updated', 'evaluation', 'EvaluationJob'),
+    ('error', 'error', 'Error')]:
+    _name = ''.join(word.title() for word in _kind.split('_')) + 'Event'
+    S[_name] = obj({'id': ID, 'sequence': integer(minimum=1), 'session_revision': REV,
+        'type': enum(_kind), 'created_at': string(format='date-time'),
+        'payload': obj({_payload_name: ref(_schema_name)})})
+    _event_variants.append(ref(_name))
+S['PublicKnowledgeRelease'] = obj({'id':ID,'task_id':ID,'title':string(),'content_hash':string(),'content_status':string(nullable=True),'documents':array(ref('SourceDocument')),'evidence':array(ref('Evidence')),'units':array({'type':'object','additionalProperties':True})})
+S['SessionEvent'] = {'oneOf': _event_variants, 'discriminator': {'propertyName': 'type',
+    'mapping': {S[item['$ref'].split('/')[-1]]['properties']['type']['enum'][0]: item['$ref'] for item in _event_variants}}}
 
 def response(schema, description='Success'):
     return {'description': description, 'content': {'application/json': {'schema': schema}}}
@@ -74,7 +116,7 @@ def operation(name, summary, output, body=None, status='200', roles='learner', m
           'responses': {status: response(output)}}
     for code, desc in [('401', 'Invalid session'), ('403', 'Forbidden role or scope'),
                        ('404', 'Unknown or inaccessible resource'), ('409', 'State, revision or idempotency conflict'),
-                       ('422', 'Invalid request or unknown referenced value')]:
+                       ('413', 'Request body too large'), ('422', 'Invalid request or unknown referenced value'), ('429', 'Rate or usage limit')]:
         op['responses'][code] = response(ref('Error'), desc)
     if mutation:
         op['parameters'] = [{'name': 'Idempotency-Key', 'in': 'header', 'required': True,
@@ -90,8 +132,8 @@ def save(filename, title, paths):
         names = [part[1:-1] for part in path.split('/') if part.startswith('{')]
         if names:
             item['parameters'] = [{'name': name, 'in': 'path', 'required': True, 'schema': ID} for name in names]
-    spec = {'openapi': '3.0.3', 'info': {'title': title, 'version': '1.0.0',
-        'description': 'Proposed hackathon contract. See component plan and README for state, fixture and role invariants. All errors are JSON. No deployed implementation is implied.'},
+    spec = {'openapi': '3.0.3', 'info': {'title': title, 'version': '2.0.0',
+        'description': 'Technical Viva v2 contract and adjacent Studio/Playground interfaces. The repository implements Viva and scoped source resolution; Studio authoring and Playground execution remain adjacent component plans. See the implementation coverage document. All errors are JSON.'},
         'servers': [{'url': '/api/v1'}], 'security': [{'DemoSession': []}], 'paths': paths,
         'components': {'securitySchemes': {'DemoSession': {'type': 'http', 'scheme': 'bearer',
             'description': 'Preprovisioned opaque demo session; server resolves role and identity.'}}, 'schemas': S}}
@@ -128,6 +170,13 @@ studio = {
 }
 studio['/studio/tasks/{task_id}/media']['post']['responses']['413'] = response(ref('Error'), 'Media exceeds 100 MB')
 studio['/studio/drafts/{draft_id}']['patch']['description'] += ' Experts can correct content; only reviewers may set support review to supported. Edits to published drafts are rejected; fork support is outside this minimal API and handled by a new capture.'
+studio['/studio/releases/{release_id}'] = {'get': operation('getStudioRelease', 'Read authorized immutable knowledge and document manifest', ref('PublicKnowledgeRelease'), roles='learner for bound release; expert or reviewer for task')}
+studio['/studio/releases/{release_id}/documents/{document_id}'] = {'get': operation('resolveStudioDocument', 'Resolve document and evidence within approved release',
+    obj({'document': ref('SourceDocument'), 'evidence': array(ref('Evidence'))}), roles='learner for bound release; expert or reviewer for task')}
+studio['/studio/releases/{release_id}/documents/{document_id}/content'] = {'get': {
+    'operationId': 'readStudioDocumentContent', 'summary': 'Read authorized source bytes',
+    'responses': {'200': {'description': 'Original source content', 'content': {'application/octet-stream': {'schema': string(format='binary')}}},
+        **{code: response(ref('Error'), detail) for code, detail in [('401', 'Invalid session'), ('403', 'Forbidden'), ('404', 'Missing or inaccessible source')]}}}}
 save('expert-studio.openapi.json', 'Takumi Expert Studio', studio)
 
 playground = {
@@ -142,14 +191,44 @@ save('apprentice-playground.openapi.json', 'Takumi Apprentice Playground', playg
 
 viva = {
  '/viva/sessions': {'post': operation('startVivaSession', 'Get or create interview for completed owned attempt', ref('VivaSession'),
-     obj({'attempt_id': ID}), mutation=True)},
- '/viva/sessions/{session_id}': {'get': operation('getVivaSession', 'Restore scripted interview state', ref('VivaSession'))},
- '/viva/sessions/{session_id}/answers': {'post': operation('submitVivaAnswer', 'Score selected option and advance fixed question order',
-     obj({'session': ref('VivaSession'), 'answer': ref('AnswerResult')}),
-     obj({'expected_revision': REV, 'question_id': ID, 'option_id': ID, 'reflection': string(maxLength=5000)},
-         ['expected_revision', 'question_id', 'option_id']), mutation=True)},
- '/viva/sessions/{session_id}/result': {'get': operation('getVivaResult', 'Get completed exercise report with authored feedback', ref('VivaResult'))}
+     obj({'attempt_id': ID, 'input_mode': enum('voice', 'text')}, ['attempt_id']), mutation=True)},
+ '/viva/sessions/{session_id}': {'get': operation('getVivaSession', 'Restore interview state without private rubric', ref('VivaSession'))},
+ '/viva/sessions/{session_id}/connection': {'post': operation('connectVivaVoice', 'Negotiate authorized WebRTC connection',
+     obj({'session': ref('VivaSession'), 'connection_id': ID, 'sdp_answer': string()}),
+     obj({'expected_revision': REV, 'sdp_offer': string(minLength=1, maxLength=100000),
+          'microphone_consent': {'type': 'boolean', 'enum': [True]}}), mutation=True)},
+ '/viva/sessions/{session_id}/answers': {'post': operation('submitVivaAnswer', 'Commit typed answer and queue interviewer response',
+     obj({'session': ref('VivaSession'), 'turn': ref('InterviewTurn')}),
+     obj({'expected_revision': REV, 'question_id': ID, 'client_turn_id': ID,
+          'text': string(minLength=1, maxLength=10000)}), status='202', mutation=True)},
+ '/viva/sessions/{session_id}/events': {'get': operation('getVivaEvents', 'Read ordered durable events after cursor',
+     obj({'events': array(ref('SessionEvent')), 'next_after': REV, 'has_more': {'type': 'boolean'}}))},
+ '/viva/sessions/{session_id}/pause': {'post': operation('pauseVivaSession', 'Pause active interview and close media connection',
+     ref('VivaSession'), obj({'expected_revision': REV}), mutation=True)},
+ '/viva/sessions/{session_id}/resume': {'post': operation('resumeVivaSession', 'Resume interview in chosen input mode',
+     ref('VivaSession'), obj({'expected_revision': REV, 'input_mode': enum('voice', 'text')}), mutation=True)},
+ '/viva/sessions/{session_id}/finish': {'post': operation('finishVivaSession', 'Freeze transcript and get or create evaluation job',
+     ref('EvaluationJob'), obj({'expected_revision': REV}), status='202', mutation=True)},
+ '/viva/sessions/{session_id}/evaluation': {'get': operation('getVivaEvaluation', 'Read evaluation job status', ref('EvaluationJob'))},
+ '/viva/sessions/{session_id}/result': {'get': operation('getVivaResult', 'Read completed evidence-linked assessment', ref('VivaReport'))}
 }
+viva['/viva/sessions/{session_id}/connection/ready'] = {'post': operation('confirmVivaMediaReady', 'Enable first question only after browser media is connected', ref('VivaSession'),
+    obj({'expected_revision': REV, 'connection_id': ID}), mutation=True)}
+viva['/viva/sessions/{session_id}/repeat'] = {'post': operation('repeatVivaQuestion', 'Repeat current question without changing grading', ref('VivaSession'),
+    obj({'expected_revision': REV, 'question_id': ID}), status='202', mutation=True)}
+viva['/viva/sessions/{session_id}/transcript-flags'] = {'post': operation('flagVivaTranscript', 'Flag unclear learner transcription and request replacement when possible',
+    obj({'session': ref('VivaSession'), 'turn': ref('InterviewTurn'), 'replacement_requested': {'type': 'boolean'}}),
+    obj({'expected_revision': REV, 'turn_id': ID, 'reason': string(minLength=1, maxLength=500)}), mutation=True)}
+viva['/viva/sessions/{session_id}/events']['get']['parameters'] = [
+    {'name': 'after', 'in': 'query', 'schema': integer(minimum=0, default=0)},
+    {'name': 'limit', 'in': 'query', 'schema': integer(minimum=1, maximum=100, default=100)}]
+viva['/viva/sessions/{session_id}/events']['get']['description'] += ' Poll every 500 ms while active and 2 s while evaluating. Only completed turns are durable; partial captions are provider UI events. Event type requires its corresponding payload, and no other payload.'
+viva['/viva/sessions/{session_id}/connection']['post']['description'] += ' Only created/paused sessions in voice mode may connect. Backend attaches control channel, then browser confirms /connection/ready before microphone activation and the first spoken question. Replay returns original SDP; an expired connection requires a new key and negotiation. No provider secret is returned.'
+viva['/viva/sessions/{session_id}/answers']['post']['description'] += ' Text mode only; question must be current and fully delivered. Unique client_turn_id per session; changed content for an existing turn ID conflicts. Server serializes voice and text acceptance.'
+viva['/viva/sessions/{session_id}/finish']['post']['description'] += ' Existing evaluation job is returned before revision checks, even with a new idempotency key. Otherwise freeze committed transcript and enqueue once; incomplete coverage is reported. Committed turns are frozen atomically; unfinished speech is not graded.'
+viva['/viva/sessions/{session_id}/result']['get']['description'] += ' Returns 409 until evaluation is complete. Source index is the entire bound release manifest, not retrieval results. No future question keys or private rubric are exposed during the interview.'
+for suffix in ('connection', 'answers'):
+    viva[f'/viva/sessions/{{session_id}}/{suffix}']['post']['responses']['503'] = response(ref('Error'), 'Provider unavailable; retain progress')
 save('technical-viva.openapi.json', 'Takumi Technical Viva', viva)
 
 # Dependency-free structural checks, not a substitute for an OpenAPI validator.
