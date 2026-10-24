@@ -61,9 +61,10 @@ type PlaygroundProps = {
   onMessage?: (message: string, isError?: boolean) => void;
   onActivity?: (count: number) => void;
   persistenceKey?: string;
+  headerAction?: React.ReactNode;
 };
 
-export default function App({ embedded = false, onAttemptComplete, onContinueToInterview, onMessage, onActivity, persistenceKey = STORAGE_KEY }: PlaygroundProps = {}) {
+export default function App({ embedded = false, onAttemptComplete, onContinueToInterview, onMessage, onActivity, persistenceKey = STORAGE_KEY, headerAction }: PlaygroundProps = {}) {
   const [attempt, setAttempt] = useState(() => readInitial(persistenceKey));
   const [selected, setSelected] = useState<ComponentId>('bearing');
   const [tab, setTab] = useState('Practice');
@@ -273,14 +274,17 @@ export default function App({ embedded = false, onAttemptComplete, onContinueToI
               <div className="eyebrow">MECHANICAL FOUNDATIONS <span>/</span> MODULE 01</div>
               <h1>Bearing assembly</h1>
             </div>
-            <button
-              className="button secondary restart"
-              aria-label="Restart exercise"
-              onClick={() => setReset({ scenario: attempt.scenarioId, mode: attempt.mode })}
-            >
-              <RotateCcw size={15} />
-              <span>Restart exercise</span>
-            </button>
+            <div className="heading-actions">
+              {headerAction}
+              <button
+                className="button secondary restart"
+                aria-label="Restart exercise"
+                onClick={() => setReset({ scenario: attempt.scenarioId, mode: attempt.mode })}
+              >
+                <RotateCcw size={15} />
+                <span>Restart exercise</span>
+              </button>
+            </div>
           </div>
 
           {/* Top Controls Row: Selectors + Progress Banner */}
