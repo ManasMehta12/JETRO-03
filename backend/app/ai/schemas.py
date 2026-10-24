@@ -1,3 +1,6 @@
+from datetime import datetime
+from typing import Any, Literal
+
 from pydantic import BaseModel, Field
 
 from app.models.schemas import Claim, EvidenceType, GapType, KnowledgeUnit, QAStatus, SourceLabel
@@ -58,3 +61,37 @@ class QAProviderResult(BaseModel):
     claims: list[Claim] = Field(default_factory=list)
     missing_information: list[str] = Field(default_factory=list)
     provenance: Provenance
+
+
+class ExtractedStep(BaseModel):
+    start_ms: int
+    end_ms: int
+    action: str
+    cue: str | None = None
+    interpretation: str | None = None
+    decision: str | None = None
+    exception: str | None = None
+    source_modality: Literal["visual", "spoken", "visual_and_spoken"]
+    evidence_description: str | None = None
+
+
+class VideoExtractionResult(BaseModel):
+    task_summary: str
+    detected_language: str | None = None
+    steps: list[ExtractedStep] = Field(default_factory=list)
+    processing_warnings: list[str] = Field(default_factory=list)
+
+
+class ProviderFile(BaseModel):
+    name: str
+    uri: str
+    mime_type: str
+    state: str  # PROCESSING | ACTIVE | FAILED
+    expires_at: datetime | None = None
+
+
+class VideoExtraction(BaseModel):
+    result: VideoExtractionResult
+    usage: dict[str, Any] | None = None
+    model_id: str
+    prompt_version: str

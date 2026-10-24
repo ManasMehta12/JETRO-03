@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class Base(DeclarativeBase):
@@ -68,9 +68,15 @@ def init_db(engine):
             connection.execute(
                 AppMeta.__table__.insert().values(key="schema_version", value=str(SCHEMA_VERSION))
             )
+        elif version.isdecimal() and 1 <= int(version) < SCHEMA_VERSION:
+            # every upgrade since v1 only adds tables, which create_all already created
+            connection.execute(
+                text("UPDATE app_meta SET value=:version WHERE key='schema_version'"),
+                {"version": str(SCHEMA_VERSION)},
+            )
         elif version != str(SCHEMA_VERSION):
             raise RuntimeError(
-                f"Database schema version {version} != expected 1; "
+                f"Database schema version {version} != expected {SCHEMA_VERSION}; "
                 "back up and delete the database file, then restart"
             )
 

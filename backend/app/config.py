@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, SecretStr, model_validator
@@ -29,10 +30,14 @@ class Settings(BaseSettings):
     enable_media_upload: bool = False
     enable_media_processing: bool = False
     enable_media_streaming: bool = False
-    max_upload_mb: int = 100
-    max_video_duration_seconds: int = 240
+    media_storage_dir: Path = Path("./data/media")
+    max_upload_mb: int = Field(100, ge=1)
+    max_video_duration_seconds: int = Field(240, ge=1)
     enable_processing_worker: bool = False
-    processing_max_retries: int = 2
+    processing_max_retries: int = Field(2, ge=0, le=5)
+    processing_poll_interval_seconds: float = Field(2.0, gt=0)
+    processing_job_lease_seconds: int = Field(180, ge=30)
+    processing_provider_timeout_seconds: int = Field(120, ge=10)
     enable_multilingual: bool = False
     enable_embeddings: bool = False
     enable_advanced_retrieval: bool = False
@@ -48,13 +53,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_capabilities(self):
         reserved = {
-            "ai_provider": 5,
-            "enable_live_extraction": 5,
-            "enable_media_processing": 5,
-            "enable_processing_worker": 5,
-            "log_model_inputs": 5,
-            "enable_media_upload": 4,
-            "enable_media_streaming": 4,
+            "log_model_inputs": 6,
             "enable_live_gap_generation": 6,
             "enable_live_qa": 6,
             "enable_multilingual": 6,
@@ -62,14 +61,33 @@ class Settings(BaseSettings):
             "enable_advanced_retrieval": 6,
         }
         for field, checkpoint in reserved.items():
-            enabled = (
-                self.ai_provider == "gemini" if field == "ai_provider" else getattr(self, field)
-            )
-            if enabled:
-                name = "AI_PROVIDER=gemini" if field == "ai_provider" else field.upper()
+            if getattr(self, field):
+                name = field.upper()
                 raise ValueError(
-                    f"{name} is reserved for Checkpoint {checkpoint} and not implemented in V1"
+                    f"{name} is reserved for Checkpoint {checkpoint} and not implemented yet"
                 )
+        if self.ai_provider == "gemini" and (
+            not self.gemini_api_key
+            or not self.gemini_api_key.get_secret_value().strip()
+            or not self.gemini_model
+            or not self.gemini_model.strip()
+        ):
+            raise ValueError("AI_PROVIDER=gemini requires GEMINI_API_KEY and GEMINI_MODEL")
+        if self.enable_live_extraction and not (
+            self.ai_provider == "gemini" and self.enable_media_processing
+        ):
+            raise ValueError(
+                "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini "
+                "and ENABLE_MEDIA_PROCESSING=true"
+            )
+        if self.enable_media_processing and not self.enable_media_upload:
+            raise ValueError("ENABLE_MEDIA_PROCESSING requires ENABLE_MEDIA_UPLOAD=true")
+        if self.enable_processing_worker and not self.enable_media_processing:
+            raise ValueError("ENABLE_PROCESSING_WORKER requires ENABLE_MEDIA_PROCESSING=true")
+        if self.processing_job_lease_seconds <= self.processing_provider_timeout_seconds:
+            raise ValueError(
+                "PROCESSING_JOB_LEASE_SECONDS must exceed PROCESSING_PROVIDER_TIMEOUT_SECONDS"
+            )
         for field in ("demo_mode", "enable_demo_auth", "enable_demo_reset", "enable_demo_seed"):
             if self.app_env == "production" and getattr(self, field):
                 raise ValueError(f"{field.upper()} must be false when APP_ENV=production")

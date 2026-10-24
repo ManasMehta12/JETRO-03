@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session  # noqa: E402
 
 from app.config import get_settings  # noqa: E402
 from app.database import build_engine, init_db  # noqa: E402
+from app.services import media_service  # noqa: E402
 from app.services.seed_service import reset_demo  # noqa: E402
 
 
@@ -25,7 +26,8 @@ def main():
     try:
         init_db(engine)
         with Session(engine) as session, session.begin():
-            reset_demo(session, args.state)
+            storage_keys = reset_demo(session, args.state)
+        media_service.remove_stored_files(settings, storage_keys)
         print(f"reset to {args.state}")
     finally:
         engine.dispose()

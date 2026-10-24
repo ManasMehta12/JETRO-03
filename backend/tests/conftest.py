@@ -12,6 +12,7 @@ def settings_factory(tmp_path):
     def factory(**overrides):
         values = dict(
             database_url=f"sqlite:///{tmp_path}/test.db",
+            media_storage_dir=tmp_path / "media",
             app_env="test",
             demo_signing_secret="test-secret",
             demo_seed_state="fresh",

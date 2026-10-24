@@ -8,6 +8,7 @@ from app.core.errors import AppError, feature_disabled
 from app.core.security import CurrentUser, require_roles
 from app.database import get_db
 from app.models.schemas import DemoResetOut, DemoResetRequest
+from app.services import media_service
 from app.services.seed_service import reset_demo
 
 router = APIRouter(tags=["demo"])
@@ -32,5 +33,6 @@ def reset(
     if req.confirm != "RESET_DEMO_DATA":
         raise AppError("CONFIRMATION_REQUIRED", "Confirm with RESET_DEMO_DATA.", 422)
     with session.begin():
-        reset_demo(session, req.state)
+        storage_keys = reset_demo(session, req.state)
+    media_service.remove_stored_files(settings, storage_keys)
     return DemoResetOut(success=True, scope=req.scope, state=req.state)

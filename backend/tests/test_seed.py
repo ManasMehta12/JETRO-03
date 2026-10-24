@@ -92,3 +92,17 @@ def test_schema_version_guard(client):
         connection.execute(text("UPDATE app_meta SET value='99' WHERE key='schema_version'"))
     with pytest.raises(RuntimeError, match="back up and delete"):
         init_db(client.app.state.engine)
+
+
+def test_schema_v1_additive_upgrade(client):
+    from sqlalchemy import inspect, text
+
+    with client.app.state.engine.begin() as connection:
+        connection.execute(text("DROP TABLE media_assets"))
+        connection.execute(text("UPDATE app_meta SET value='1' WHERE key='schema_version'"))
+    init_db(client.app.state.engine)
+    with client.app.state.engine.begin() as connection:
+        assert (
+            connection.scalar(text("SELECT value FROM app_meta WHERE key='schema_version'")) == "2"
+        )
+    assert "media_assets" in inspect(client.app.state.engine).get_table_names()

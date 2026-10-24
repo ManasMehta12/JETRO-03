@@ -7,7 +7,15 @@ from app.ai.fixture_provider import FIXTURE_PATH, FixtureAIProvider
 from app.ai.schemas import MediaReference, TaskContext
 from app.core.security import CurrentUser
 from app.database import utcnow
-from app.models.entities import Clarification, Draft, DraftRevision, Evidence, Release, Task
+from app.models.entities import (
+    Clarification,
+    Draft,
+    DraftRevision,
+    Evidence,
+    MediaAsset,
+    Release,
+    Task,
+)
 from app.models.schemas import ClarificationRespond, PublishRequest
 from app.services import clarification_service, publication_service
 
@@ -101,11 +109,15 @@ def seed_demo(
     return True
 
 
-def reset_demo(session, state: Literal["fresh", "approved_baseline"] = "fresh") -> None:
+def reset_demo(session, state: Literal["fresh", "approved_baseline"] = "fresh") -> list[str]:
+    storage_keys = list(
+        session.scalars(select(MediaAsset.storage_key).where(MediaAsset.task_id == FIXTURE_TASK_ID))
+    )
     draft_ids = select(Draft.id).where(Draft.task_id == FIXTURE_TASK_ID)
     session.execute(delete(DraftRevision).where(DraftRevision.draft_id.in_(draft_ids)))
-    for model in (Clarification, Release, Draft, Evidence):
+    for model in (Clarification, Release, Draft, Evidence, MediaAsset):
         session.execute(delete(model).where(model.task_id == FIXTURE_TASK_ID))
     session.execute(delete(Task).where(Task.id == FIXTURE_TASK_ID))
     session.flush()
     seed_demo(session, state)
+    return storage_keys

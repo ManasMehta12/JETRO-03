@@ -40,7 +40,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.cors_origin_list,
         allow_methods=["*"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Range"],
+        expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
     )
     add_http_middlewares(app, settings)
     register_error_handlers(app)

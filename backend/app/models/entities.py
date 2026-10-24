@@ -66,6 +66,26 @@ class Evidence(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class MediaAsset(Base):
+    __tablename__ = "media_assets"
+    id: Mapped[str] = mapped_column(primary_key=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id"))
+    owner_id: Mapped[str]
+    original_filename: Mapped[str]
+    storage_key: Mapped[str] = mapped_column(unique=True)
+    mime_type: Mapped[str]
+    container: Mapped[str]
+    size_bytes: Mapped[int]
+    sha256: Mapped[str]
+    duration_ms: Mapped[int]
+    video_codec: Mapped[str]
+    audio_codec: Mapped[str | None]
+    width: Mapped[int]
+    height: Mapped[int]
+    status: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class Clarification(Base):
     __tablename__ = "clarifications"
     id: Mapped[str] = mapped_column(primary_key=True)

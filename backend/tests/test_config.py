@@ -20,7 +20,26 @@ def test_defaults():
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [
-        ({"ai_provider": "gemini"}, "reserved for Checkpoint 5"),
+        (
+            {"ai_provider": "gemini"},
+            "AI_PROVIDER=gemini requires GEMINI_API_KEY and GEMINI_MODEL",
+        ),
+        (
+            {"enable_live_extraction": True},
+            "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini and ENABLE_MEDIA_PROCESSING=true",
+        ),
+        (
+            {"enable_media_processing": True},
+            "ENABLE_MEDIA_PROCESSING requires ENABLE_MEDIA_UPLOAD=true",
+        ),
+        (
+            {"enable_processing_worker": True},
+            "ENABLE_PROCESSING_WORKER requires ENABLE_MEDIA_PROCESSING=true",
+        ),
+        (
+            {"processing_job_lease_seconds": 120},
+            "PROCESSING_JOB_LEASE_SECONDS must exceed PROCESSING_PROVIDER_TIMEOUT_SECONDS",
+        ),
         ({"enable_live_qa": True}, "reserved for Checkpoint 6"),
         ({"app_env": "production"}, "must be false when APP_ENV=production"),
         ({"demo_mode": False}, "requires DEMO_MODE=true"),
@@ -29,6 +48,11 @@ def test_defaults():
 def test_invalid_settings(overrides, message):
     with pytest.raises(ValidationError, match=message):
         Settings(_env_file=None, **overrides)
+
+
+def test_gemini_settings():
+    settings = Settings(_env_file=None, ai_provider="gemini", gemini_api_key="k", gemini_model="m")
+    assert settings.ai_provider == "gemini"
 
 
 def test_health(client):
@@ -49,12 +73,28 @@ def test_disabled_login(make_client):
 
 
 def test_reserved_media_auth(client):
-    response = client.post("/api/v1/tasks/task_001/media", headers=auth(client, "expert"))
+    response = client.post(
+        "/api/v1/tasks/task_001/media",
+        headers=auth(client, "expert"),
+        files={"file": ("test.mp4", b"test", "video/mp4")},
+    )
     assert response.status_code == 501
     assert response.json()["error"]["details"]["flag"] == "ENABLE_MEDIA_UPLOAD"
     response = client.post("/api/v1/tasks/task_001/media")
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHENTICATED"
+    assert (
+        client.post("/api/v1/tasks/task_001/media", headers=auth(client, "apprentice")).status_code
+        == 403
+    )
+    for method, path in [
+        ("post", "/api/v1/tasks/task_001/process"),
+        ("get", "/api/v1/jobs/missing"),
+        ("get", "/api/v1/media/missing"),
+    ]:
+        assert getattr(client, method)(path).status_code == 401
+        assert getattr(client, method)(path, headers=auth(client, "expert")).status_code == 501
+    assert client.get("/api/v1/media/missing/stream").status_code == 501
 
 
 def test_tampered_token(client):

@@ -21,7 +21,17 @@ def evidence_out(evidence) -> EvidenceItemOut:
     )
 
 
-def validate_evidence_items(items, task_id, media_duration_ms: int | None = None):
+def interval_problem(start, end, duration_ms: int | None) -> str | None:
+    if not isinstance(start, int) or not isinstance(end, int) or not 0 <= start < end:
+        return "Invalid video evidence interval."
+    if duration_ms is not None and end > duration_ms:
+        return "Video evidence interval exceeds media duration."
+    return None
+
+
+def validate_evidence_items(
+    items, task_id, media_duration_ms: int | None = None, media_id: str | None = None
+):
     seen = set()
     for item in items:
         item = item.model_dump() if hasattr(item, "model_dump") else item
@@ -33,14 +43,10 @@ def validate_evidence_items(items, task_id, media_duration_ms: int | None = None
             problem = "Unsupported evidence type."
         elif item.get("source_label") not in {"real", "illustrative"}:
             problem = "Unsupported source label."
-        elif item.get("media_id") is not None:
+        elif item.get("media_id") is not None and item["media_id"] != media_id:
             problem = "Media references are not available in V1."
         elif item.get("type") == "video_segment":
-            start, end = item.get("start_ms"), item.get("end_ms")
-            if not isinstance(start, int) or not isinstance(end, int) or not 0 <= start < end:
-                problem = "Invalid video evidence interval."
-            elif media_duration_ms is not None and end > media_duration_ms:
-                problem = "Video evidence interval exceeds media duration."
+            problem = interval_problem(item.get("start_ms"), item.get("end_ms"), media_duration_ms)
         if problem:
             raise AppError("INVALID_EVIDENCE", problem, 422, {"evidence_id": evidence_id})
         seen.add(evidence_id)

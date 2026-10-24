@@ -43,6 +43,25 @@ class EvidenceItemOut(BaseModel):
     created_at: datetime
 
 
+class MediaOut(BaseModel):
+    media_id: str
+    task_id: str
+    filename: str
+    status: str
+    duration_ms: int
+    mime_type: str
+    size_bytes: int
+    sha256: str
+    video_codec: str
+    audio_codec: str | None
+    has_audio: bool
+    width: int
+    height: int
+    created_at: datetime
+    playback_url: str
+    playback_expires_at: datetime
+
+
 class ClarificationOut(BaseModel):
     id: str
     knowledge_unit_id: str
