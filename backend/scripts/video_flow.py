@@ -38,18 +38,23 @@ def run_flow(client, video: Path, mode: str, timeout: float) -> None:
     response.raise_for_status()
     assert response.status_code == 206, (response.status_code, response.text)
     print("range=206", flush=True)
+    print(f"playback={client.base_url.join(media['playback_url'])}", flush=True)
     job = request(
         "POST",
         f"/tasks/{task_id}/process",
         json={"media_id": media_id, "mode": mode, "request_id": f"video_flow_{uuid4().hex[:8]}"},
     ).json()
     print(f"job_id={job['job_id']}", flush=True)
-    deadline = time.monotonic() + timeout
+    started = time.monotonic()
+    deadline = started + timeout
     previous = None
     while True:
         state = (job["stage"], job["status"])
         if state != previous:
-            print(f"stage={state[0]} status={state[1]}", flush=True)
+            print(
+                f"t={time.monotonic() - started:.0f}s stage={state[0]} status={state[1]}",
+                flush=True,
+            )
             previous = state
         if job["status"] == "failed":
             raise RuntimeError(json.dumps(job["error"]))
