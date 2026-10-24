@@ -1,0 +1,348 @@
+[
+  {
+    "label": "dashboard",
+    "path": "/",
+    "errors": [],
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "document": {
+      "width": 1366,
+      "height": 768
+    },
+    "footer": {
+      "x": 0,
+      "y": 718,
+      "width": 1366,
+      "height": 50,
+      "top": 718,
+      "right": 1366,
+      "bottom": 768,
+      "left": 0
+    },
+    "panels": [
+      {
+        "title": "Shaft and Bearing Inspection",
+        "bounds": {
+          "x": 24,
+          "y": 116.890625,
+          "width": 811.921875,
+          "height": 353.84375,
+          "top": 116.890625,
+          "right": 835.921875,
+          "bottom": 470.734375,
+          "left": 24
+        },
+        "scrollHeight": 352,
+        "clientHeight": 352
+      },
+      {
+        "title": "Learning sequence",
+        "bounds": {
+          "x": 849.921875,
+          "y": 116.890625,
+          "width": 492.0625,
+          "height": 353.84375,
+          "top": 116.890625,
+          "right": 1341.984375,
+          "bottom": 470.734375,
+          "left": 849.921875
+        },
+        "scrollHeight": 352,
+        "clientHeight": 352
+      },
+      {
+        "title": "What you will practice",
+        "bounds": {
+          "x": 24,
+          "y": 484.734375,
+          "width": 811.921875,
+          "height": 208.15625,
+          "top": 484.734375,
+          "right": 835.921875,
+          "bottom": 692.890625,
+          "left": 24
+        },
+        "scrollHeight": 206,
+        "clientHeight": 206
+      },
+      {
+        "title": "Latest assessment",
+        "bounds": {
+          "x": 849.921875,
+          "y": 484.734375,
+          "width": 492.0625,
+          "height": 208.15625,
+          "top": 484.734375,
+          "right": 1341.984375,
+          "bottom": 692.890625,
+          "left": 849.921875
+        },
+        "scrollHeight": 206,
+        "clientHeight": 206
+      }
+    ],
+    "navigation_and_capture_ms": 1631
+  },
+  {
+    "label": "studio",
+    "path": "/studio",
+    "errors": [],
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "document": {
+      "width": 1366,
+      "height": 768
+    },
+    "footer": {
+      "x": 0,
+      "y": 730,
+      "width": 1366,
+      "height": 38,
+      "top": 730,
+      "right": 1366,
+      "bottom": 768,
+      "left": 0
+    },
+    "panels": [
+      {
+        "title": "Knowledge units",
+        "bounds": {
+          "x": 22,
+          "y": 244,
+          "width": 268.875,
+          "height": 468,
+          "top": 244,
+          "right": 290.875,
+          "bottom": 712,
+          "left": 22
+        },
+        "scrollHeight": 466,
+        "clientHeight": 466
+      },
+      {
+        "title": "Tacit knowledge review",
+        "bounds": {
+          "x": 304.875,
+          "y": 244,
+          "width": 638.59375,
+          "height": 468,
+          "top": 244,
+          "right": 943.46875,
+          "bottom": 712,
+          "left": 304.875
+        },
+        "scrollHeight": 466,
+        "clientHeight": 466
+      },
+      {
+        "title": "Source evidence",
+        "bounds": {
+          "x": 957.46875,
+          "y": 244,
+          "width": 386.53125,
+          "height": 194.5625,
+          "top": 244,
+          "right": 1344,
+          "bottom": 438.5625,
+          "left": 957.46875
+        },
+        "scrollHeight": 193,
+        "clientHeight": 193
+      },
+      {
+        "title": "Evaluate & publish",
+        "bounds": {
+          "x": 957.46875,
+          "y": 452.5625,
+          "width": 386.53125,
+          "height": 259.4375,
+          "top": 452.5625,
+          "right": 1344,
+          "bottom": 712,
+          "left": 957.46875
+        },
+        "scrollHeight": 257,
+        "clientHeight": 257
+      }
+    ],
+    "navigation_and_capture_ms": 885
+  },
+  {
+    "label": "admin",
+    "path": "/studio/admin",
+    "ready_ms": 678,
+    "errors": [],
+    "viewport": {
+      "width": 1366,
+      "height": 768
+    },
+    "document": {
+      "width": 1366,
+      "height": 768
+    },
+    "footer": {
+      "x": 0,
+      "y": 730,
+      "width": 1366,
+      "height": 38,
+      "top": 730,
+      "right": 1366,
+      "bottom": 768,
+      "left": 0
+    },
+    "panels": [
+      {
+        "title": "Knowledge units",
+        "bounds": {
+          "x": 22,
+          "y": 244,
+          "width": 268.875,
+          "height": 468,
+          "top": 244,
+          "right": 290.875,
+          "bottom": 712,
+          "left": 22
+        },
+        "scrollHeight": 466,
+        "clientHeight": 466
+      },
+      {
+        "title": "Tacit knowledge review",
+        "bounds": {
+          "x": 304.875,
+          "y": 244,
+          "width": 638.59375,
+          "height": 468,
+          "top": 244,
+          "right": 943.46875,
+          "bottom": 712,
+          "left": 304.875
+        },
+        "scrollHeight": 466,
+        "clientHeight": 466
+      },
+      {
+        "title": "Source evidence",
+        "bounds": {
+          "x": 957.46875,
+          "y": 244,
+          "width": 386.53125,
+          "height": 194.5625,
+          "top": 244,
+          "right": 1344,
+          "bottom": 438.5625,
+          "left": 957.46875
+        },
+        "scrollHeight": 193,
+        "clientHeight": 193
+      },
+      {
+        "title": "Authorize publication",
+        "bounds": {
+          "x": 957.46875,
+          "y": 452.5625,
+          "width": 386.53125,
+          "height": 259.4375,
+          "top": 452.5625,
+          "right": 1344,
+          "bottom": 712,
+          "left": 957.46875
+        },
+        "scrollHeight": 257,
+        "clientHeight": 257
+      }
+    ],
+    "controls": 19
+  },
+  {
+    "label": "admin-mobile",
+    "path": "/studio/admin",
+    "ready_ms": 585,
+    "errors": [],
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "document": {
+      "width": 390,
+      "height": 1917
+    },
+    "footer": {
+      "x": 0,
+      "y": 806,
+      "width": 390,
+      "height": 38,
+      "top": 806,
+      "right": 390,
+      "bottom": 844,
+      "left": 0
+    },
+    "panels": [
+      {
+        "title": "Knowledge units",
+        "bounds": {
+          "x": 14,
+          "y": 410,
+          "width": 362,
+          "height": 210,
+          "top": 410,
+          "right": 376,
+          "bottom": 620,
+          "left": 14
+        },
+        "scrollHeight": 208,
+        "clientHeight": 208
+      },
+      {
+        "title": "Tacit knowledge review",
+        "bounds": {
+          "x": 14,
+          "y": 629,
+          "width": 362,
+          "height": 613,
+          "top": 629,
+          "right": 376,
+          "bottom": 1242,
+          "left": 14
+        },
+        "scrollHeight": 611,
+        "clientHeight": 611
+      },
+      {
+        "title": "Source evidence",
+        "bounds": {
+          "x": 14,
+          "y": 1251,
+          "width": 362,
+          "height": 300,
+          "top": 1251,
+          "right": 376,
+          "bottom": 1551,
+          "left": 14
+        },
+        "scrollHeight": 298,
+        "clientHeight": 298
+      },
+      {
+        "title": "Authorize publication",
+        "bounds": {
+          "x": 14,
+          "y": 1565,
+          "width": 362,
+          "height": 300,
+          "top": 1565,
+          "right": 376,
+          "bottom": 1865,
+          "left": 14
+        },
+        "scrollHeight": 298,
+        "clientHeight": 298
+      }
+    ],
+    "controls": 19
+  }
+]

@@ -147,45 +147,69 @@ def authorize(session, task_id, req, user):
     return {**row_dict(grant), "status": "authorized"}
 
 
-def publish(session, task_id, req, user):
+def publish_release(session, task_id, req, user, settings):
     draft, digest, issues = inspect(session, task_id)
     knowledge_service.check_revision(session, draft, req.expected_revision)
-    grant = session.scalar(
-        select(StudioAuthorization)
-        .where(
-            StudioAuthorization.task_id == task_id,
-            StudioAuthorization.revision == draft.revision,
-            StudioAuthorization.content_hash == digest,
-            StudioAuthorization.expert_id == user.id,
+    grant = None
+    if not settings.demo_mode:
+        grant = session.scalar(
+            select(StudioAuthorization)
+            .where(
+                StudioAuthorization.task_id == task_id,
+                StudioAuthorization.revision == draft.revision,
+                StudioAuthorization.content_hash == digest,
+                StudioAuthorization.expert_id == user.id,
+            )
+            .order_by(StudioAuthorization.created_at.desc())
         )
-        .order_by(StudioAuthorization.created_at.desc())
-    )
-    if grant is None:
-        raise AppError(
-            "AUTHORIZATION_REQUIRED",
-            "A tutor administrator must authorize this evaluated revision for you.",
-            403,
-        )
+        if grant is None:
+            raise AppError(
+                "AUTHORIZATION_REQUIRED",
+                "A tutor administrator must authorize this evaluated revision for you.",
+                403,
+            )
     if issues:
         raise AppError("PUBLICATION_BLOCKED", "Draft cannot be published.", 409, {"issues": issues})
+    evaluation = session.scalar(
+        select(StudioEvaluation)
+        .where(
+            StudioEvaluation.task_id == task_id,
+            StudioEvaluation.revision == draft.revision,
+            StudioEvaluation.content_hash == digest,
+            StudioEvaluation.passed.is_(True),
+        )
+        .order_by(StudioEvaluation.created_at.desc())
+    )
+    if evaluation is None:
+        raise AppError(
+            "EVALUATION_REQUIRED", "Evaluate the current draft successfully before publishing.", 409
+        )
     release, created = publication_service.publish(
         session,
         task_id,
         PublishRequest(expected_revision=req.expected_revision, approval_note=req.approval_note),
         user,
     )
-    if grant.release_id is None:
+    if grant is not None and grant.release_id is None:
         grant.release_id = release.id
+    if created:
         audit(
             session,
             task_id,
             user,
             "published",
-            authorization_id=grant.id,
+            authorization_id=grant.id if grant else None,
+            evaluation_id=evaluation.id,
             revision=draft.revision,
             release_id=release.id,
             approval_note=req.approval_note,
+            approval_policy="demo_human_review" if settings.demo_mode else "tutor_authorization",
         )
+    return release, created
+
+
+def publish(session, task_id, req, user, settings):
+    release, _ = publish_release(session, task_id, req, user, settings)
     return publication_service.release_out(session, release)
 
 
@@ -234,6 +258,25 @@ def overview(session, task_id):
                 "created_at": revision.created_at,
             }
         )
+    for clarification in session.scalars(
+        select(Clarification).where(Clarification.task_id == task_id)
+    ).all():
+        if clarification.answered_at:
+            events.append(
+                {
+                    "id": f"clarification_{clarification.id}",
+                    "task_id": task_id,
+                    "action": "clarification_resolved",
+                    "actor_id": clarification.answered_by,
+                    "details": {
+                        "clarification_id": clarification.id,
+                        "status": clarification.status,
+                        "answer": clarification.answer,
+                        "evidence_id": clarification.evidence_id,
+                    },
+                    "created_at": clarification.answered_at,
+                }
+            )
     events.sort(key=lambda event: event["created_at"].isoformat(), reverse=True)
     active = (
         publication_service.active_release(session, task_id) if task.active_release_id else None

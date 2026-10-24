@@ -16,6 +16,7 @@ from app.api import (
     qa,
     releases,
     studio,
+    studio_analysis,
     tasks,
 )
 from app.config import Settings, get_settings
@@ -34,6 +35,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app):
         init_db(engine)
+        from app.services.studio_analysis_service import recover_interrupted
+
+        with app.state.sessionmaker() as session, session.begin():
+            recover_interrupted(session)
         if settings.demo_mode and settings.enable_demo_seed:
             with app.state.sessionmaker() as session, session.begin():
                 seed_demo(session, settings.demo_seed_state)
@@ -71,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         demo,
         learning,
         studio,
+        studio_analysis,
     ):
         app.include_router(module.router, prefix="/api/v1")
     return app

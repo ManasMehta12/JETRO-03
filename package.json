@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev.mjs",
+    "demo:preflight": "node scripts/demo-preflight.mjs",
     "dev:frontend": "vite --host 127.0.0.1",
     "dev:backend": "uv run --directory backend uvicorn app.main:app --host 127.0.0.1 --port 8000 --no-access-log",
     "build": "tsc -b && vite build",

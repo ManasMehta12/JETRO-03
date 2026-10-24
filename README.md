@@ -14,15 +14,36 @@ npm run dev
 
 This starts the learning backend on `127.0.0.1:8000` and the Vite frontend on `127.0.0.1:5173`. Open the frontend URL. For separate processes use `npm run dev:backend` and `npm run dev:frontend`. The frontend proxies `/api` to the backend; `VITE_API_TARGET` can override its address. Production hosting must similarly route `/api` to the backend.
 
-The local application signs in as the existing demo apprentice. This is a shared demo identity, not a production login system. The seeded approved knowledge release supplies the course outline. Existing Studio knowledge-engine APIs remain available.
+The local application uses shared demo identities. Open `/studio` for the source diagnosis and expert review workspace, or `/` for the apprentice. `/studio/admin` opens tutor administration using the same agent workflow and the server-provided administrator identity. In demo mode, successful evaluation and human approval publish directly; there is no separate admin authorization step.
+
+## One-button diagnosis demo
+
+1. Open **Expert Studio**. The bearing exercise is explicitly connected to the apprentice course.
+2. The panel defaults to **Live AI agents** and loads evidence from the connected server task. Select **Run AI diagnosis** when a Gemini key is configured. Missing credentials show **Configuration required**. Select **Illustrative rehearsal** explicitly in Analysis mode only when you want the fixed demonstration. The server extracts source facts, proposes field patches and independently evaluates their support. The UI shows actual server stages, source quotes and before/after changes.
+3. Review/select patches. If unanswered expert prompts remain, explicitly choose to defer them as unknown, or resolve them in **Expert review**. Enter a publication note and select **Approve & publish changes**.
+4. The apprentice automatically opens the updated course. Complete the lesson/playground normally or use their explicit manual completion buttons, then start a new structured interview. The approved release supplies its source and answers.
+
+Configure live diagnosis in `backend/.env` and restart the backend:
+
+```dotenv
+GEMINI_API_KEY=your_key_here
+STUDIO_AI_MODEL=gemini-2.5-flash
+ENABLE_STUDIO_AI_ANALYSIS=true
+```
+
+Use a model available to your key; `GEMINI_MODEL`, when provided, overrides `STUDIO_AI_MODEL`. Source-note diagnosis detects the key automatically and does not require enabling the separate video-upload/worker flags or changing `AI_PROVIDER`. There are three bounded model calls, with a default timeout of 30 seconds each. A failed live run stays failed and never silently becomes a rehearsal. A missing key blocks live diagnosis; it never automatically substitutes fixed patches. An illustrative rehearsal is available only when explicitly selected in demo mode. Source notes are sent to the configured provider during a live run. Keys stay on the backend.
+
+Video URL and live conversational interviewing are deferred. The current extraction input is editable expert source notes, and the viva remains structured templates grounded in published content. Real requests were attempted with the configured credentials; the provider returned timeout/service-unavailable responses. A successful live run still needs rehearsal. See the [admin rewrite verification](audits/2026-10-25-admin-agent-rewrite.md).
+
+Run `npm run demo:preflight` to check service health, analysis mode, pending questions and active release without resetting or publishing. Set `TAKUMI_API_ORIGIN` if the API is not on port 8000. See [demo remediation and runbook](audits/2026-10-25-demo-remediation.md).
 
 ## Learning sequence
 
 1. **Course content:** play the recording within the interface. Playback resumes from the server record; visible playback sends timed heartbeats. Watching the course unlocks the playground. You can also explicitly select **Mark section complete**.
 2. **Simulation playground:** inspect components, assemble the bearing, use the tools, answer the knowledge checks, and make a release or escalation decision. The backend replays the submitted actions to calculate the result before unlocking the interview. **Mark section complete** can also unlock the interview without a simulation score.
-3. **Virtual interview:** answer three authored technical questions and optionally record an ungraded reflection. The backend grades fixed answer choices and stores the evaluation. Reloading restores the saved progression and interview.
+3. **Virtual interview:** answer three technical questions assembled from the approved release and optionally record an ungraded reflection. The backend grades fixed answer choices and stores the evaluation. Reloading restores the saved progression and interview.
 
-Manual completion records the learner, source context, stage, and timestamp. It does not invent watched time, simulation attempts, or passing scores. The final evaluation explicitly identifies a manually completed, unassessed playground.
+Manual completion records the learner, source context, stage, and timestamp. It does not invent watched time, simulation attempts, or passing scores. The final evaluation explicitly identifies a manually completed, unassessed playground and can be downloaded as Markdown with the questions, responses and evidence. Reset success requires a saved backend reset. Publication starts a fresh learner context for the new release; publish before preparing a learner demonstration.
 
 ## Connect the course video
 

@@ -22,6 +22,7 @@ def resolve_gaps(client, expert):
 
 def test_admin_authorizes_evaluated_revision_expert_publishes(make_client):
     with make_client(demo_seed_state="approved_baseline") as client:
+        client.app.state.settings.demo_mode = False  # Exercise the production approval policy.
         expert, admin, apprentice = (
             auth(client, role) for role in ("expert", "admin", "apprentice")
         )
@@ -84,6 +85,7 @@ def test_admin_authorizes_evaluated_revision_expert_publishes(make_client):
 
 def test_changed_revision_invalidates_evaluation_and_authorization(make_client):
     with make_client(demo_seed_state="approved_baseline") as client:
+        client.app.state.settings.demo_mode = False  # Require the separate tutor grant.
         expert, admin = auth(client, "expert"), auth(client, "admin")
         revision = resolve_gaps(client, expert)
         evaluation = client.post(
@@ -164,3 +166,62 @@ def test_failed_evidence_evaluation_cannot_be_authorized(client):
         ).status_code
         == 409
     )
+
+
+def test_demo_publication_needs_current_evaluation_not_admin_grant(make_client):
+    with make_client(demo_seed_state="approved_baseline") as client:
+        expert, reviewer = auth(client, "expert"), auth(client, "reviewer")
+        revision = resolve_gaps(client, expert)
+        req = {
+            "expected_revision": revision,
+            "approval_note": "Human reviewed evidence and limits.",
+        }
+        for route, headers in [
+            (BASE + "/publish", expert),
+            ("/api/v1/tasks/task_001/publish", reviewer),
+        ]:
+            blocked = client.post(route, headers=headers, json=req)
+            assert blocked.status_code == 409
+            assert blocked.json()["error"]["code"] == "EVALUATION_REQUIRED"
+        evaluated = client.post(
+            BASE + "/evaluate", headers=expert, json={"expected_revision": revision}
+        )
+        assert evaluated.json()["passed"] is True
+        assert client.post(BASE + "/publish", headers=expert, json=req).status_code == 200
+        overview = client.get(BASE, headers=expert).json()
+        assert overview["authorization"] is None
+        assert overview["active_release"] is not None
+        # A change cannot sneak through the legacy reviewer API after evaluation.
+        unit = overview["draft"]["knowledge_units"][0]
+        client.patch(
+            "/api/v1/tasks/task_001/draft",
+            headers=expert,
+            json={
+                "expected_revision": revision,
+                "changes": [
+                    {
+                        "knowledge_unit_id": unit["id"],
+                        "fields": {
+                            "decision": "Stop and request review of the observed condition."
+                        },
+                    }
+                ],
+            },
+        )
+        blocked = client.post(
+            "/api/v1/tasks/task_001/publish",
+            headers=reviewer,
+            json={**req, "expected_revision": revision + 1},
+        )
+        assert blocked.status_code == 409
+        assert blocked.json()["error"]["code"] == "EVALUATION_REQUIRED"
+        fresh = client.post(
+            BASE + "/evaluate", headers=expert, json={"expected_revision": revision + 1}
+        )
+        assert fresh.json()["passed"] is True
+        published = client.post(
+            "/api/v1/tasks/task_001/publish",
+            headers=reviewer,
+            json={**req, "expected_revision": revision + 1},
+        )
+        assert published.status_code == 201, published.text

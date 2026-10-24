@@ -384,3 +384,95 @@ def test_private_rubric_option_matrix(make_client, question_index, option_index)
             assert recorded["points"] == option["points"]
             assert recorded["recognizes_limits"] == option["recognizes_limits"]
             assert set(recorded["evidence_ids"]) <= set(option["evidence_ids"])
+
+
+def test_full_demo_reset_purges_all_learning_contexts_and_users(make_client):
+    from sqlalchemy import func, select
+
+    from app.database import utcnow
+    from app.learning.models import Enrollment, ManualCompletion
+
+    with make_client(demo_seed_state="approved_baseline") as client:
+        headers = auth(client, "apprentice")
+        old_course = client.get(BASE + "/course", headers=headers).json()
+        for stage in ["course", "playground"]:
+            assert (
+                client.post(BASE + "/complete", headers=headers, json={"stage": stage}).status_code
+                == 200
+            )
+        client.post(BASE + "/interview", headers=headers)
+        with client.app.state.sessionmaker() as session, session.begin():
+            session.add(
+                ManualCompletion(
+                    user_id="another_learner",
+                    context="old_release",
+                    stage="course",
+                    completed_at=utcnow(),
+                )
+            )
+        reset = client.post(
+            "/api/v1/demo/reset",
+            headers=auth(client, "reviewer"),
+            json={"scope": "full_demo", "confirm": "RESET_DEMO_DATA", "state": "approved_baseline"},
+        )
+        assert reset.status_code == 200, reset.text
+        with client.app.state.sessionmaker() as session:
+            assert session.scalar(select(func.count()).select_from(Enrollment)) == 0
+            assert session.scalar(select(func.count()).select_from(ManualCompletion)) == 0
+        new_course = client.get(BASE + "/course", headers=headers).json()
+        assert new_course["release_id"] == old_course["release_id"]  # Seed IDs are reused.
+        cleared = client.get(BASE + "/progress", headers=headers).json()
+        assert not cleared["course_completed"]
+        assert not cleared["interview_unlocked"]
+        assert cleared["manual_completion"] == {}
+        assert cleared["interview"] is None
+
+
+def test_context_changes_if_release_id_reused_with_changed_content(make_client):
+    from types import SimpleNamespace
+
+    from app.core.security import CurrentUser
+
+    with make_client(demo_seed_state="approved_baseline") as client:
+        with client.app.state.sessionmaker() as session, session.begin():
+            user = CurrentUser("apprentice_001", "apprentice", "Demo")
+            row = service.enrollment(session, user, client.app.state.settings)
+            context = row.context
+            row.watched_seconds = 30
+            original = service.active_release(session)[1]
+            changed = SimpleNamespace(
+                id=original.id,
+                content_hash="new reviewed content",
+                approved_at=original.approved_at,
+            )
+            from unittest.mock import patch
+
+            with patch.object(service, "active_release", return_value=(None, changed)):
+                refreshed = service.enrollment(session, user, client.app.state.settings)
+            assert refreshed.context != context
+            assert refreshed.watched_seconds == 0
+
+
+def test_interview_covers_later_unit_changes_and_only_limits_question_scores_limits(make_client):
+    from copy import deepcopy
+    from types import SimpleNamespace
+
+    with make_client(demo_seed_state="approved_baseline") as client:
+        with client.app.state.sessionmaker() as session:
+            release = service.active_release(session)[1]
+            units = deepcopy(release.knowledge_snapshot)
+            units[-1]["decision"] = "A reviewed correction to the final unit."
+            changed = SimpleNamespace(
+                knowledge_snapshot=units,
+                evidence_snapshot=release.evidence_snapshot,
+                version=release.version,
+                id=release.id,
+                content_hash="new",
+            )
+            script = build_script(changed)
+            choices = script["bank"][1]["options"]
+            assert any(units[-1]["decision"] in item["label"] for item in choices)
+            for index, question in enumerate(script["bank"]):
+                assert sum(item["recognizes_limits"] for item in question["options"]) == (
+                    index == 2
+                )

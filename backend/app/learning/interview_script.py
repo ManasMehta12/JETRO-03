@@ -24,21 +24,28 @@ def build_script(release):
     # changes both the generated script and its hash before any interview begins.
     brief = statements(("action", "cue", "interpretation", "decision", "exception"))
     references = sorted({ref for unit in units for ref in unit.get("evidence_ids", [])} & evidence)
-    action_unit = units[0]
-    decision_unit = next((u for u in units if u.get("decision")), action_unit)
-    exception_unit = next((u for u in units if u.get("exception")), decision_unit)
+
+    # Cover every published unit in the visible answer choices. In particular a
+    # correction to a later unit must affect what the apprentice is assessed on.
+    def summarize(fields):
+        return " ".join(
+            f"{unit['id']}: " + "; ".join(str(unit[field]) for field in fields if unit.get(field))
+            for unit in units
+            if any(unit.get(field) for field in fields)
+        )
+
     correct = (
-        f"{action_unit.get('action', 'Follow the approved action')}. Record the observation.",
-        decision_unit.get("decision") or "Seek clarification; no decision is specified.",
-        (exception_unit.get("exception") or "Seek review where the release is silent.")
+        summarize(("action",)) + " Record the observation for each check.",
+        summarize(("cue", "interpretation", "decision"))
+        or "Seek clarification; no observation or decision is specified.",
+        (summarize(("exception",)) or "Seek review where the release is silent.")
         + " Training choices do not certify a physical assembly.",
     )
     templates = (
-        ("explain-check", "How should you perform and record the checks in this release?", "b"),
+        ("explain-check", "How should you perform and record the checks across this release?", "b"),
         (
             "changed-condition",
-            f"During '{decision_unit.get('action', 'the approved check')}', "
-            "how should the published observation affect your next decision?",
+            "Across the reviewed checks, how should observations affect your next decisions?",
             "b",
         ),
         ("evidence-limits", "Which exceptions and limits must you recognize?", "c"),
@@ -59,7 +66,7 @@ def build_script(release):
                         else "Assume missing information is verified and continue without review."
                     ),
                     "points": 2 if approved else 0,
-                    "recognizes_limits": approved,
+                    "recognizes_limits": approved and identifier == "evidence-limits",
                     "feedback": (
                         "Supported by the published release. "
                         if approved
@@ -80,7 +87,7 @@ def build_script(release):
     return {
         "bank": bank,
         "generation_method": "release_grounded_template",
-        "rubric_version": 2,
+        "rubric_version": 3,
         "source_release_id": release.id,
         "source_content_hash": release.content_hash,
         "bundle_hash": hashlib.sha256(json.dumps(bank, sort_keys=True).encode()).hexdigest(),

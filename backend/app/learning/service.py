@@ -44,6 +44,7 @@ def course(session, settings):
         "video_duration_seconds": settings.course_video_duration_seconds,
         "video_configured": bool(settings.course_video_url.strip()),
         "knowledge_units": release.knowledge_snapshot if release else [],
+        "evidence_items": release.evidence_snapshot if release else [],
     }
 
 
@@ -51,7 +52,9 @@ def enrollment(session, user, settings):
     _, release = active_release(session)
     release_id = release.id if release else ""
     context = hashlib.sha256(
-        f"{release_id}|{settings.course_video_url}|{settings.course_video_duration_seconds}".encode()
+        f"{release_id}|{release.content_hash if release else ''}|"
+        f"{release.approved_at.isoformat() if release else ''}|"
+        f"{settings.course_video_url}|{settings.course_video_duration_seconds}".encode()
     ).hexdigest()
     row = session.get(Enrollment, user.id)
     if row is None:
@@ -233,6 +236,12 @@ def answer(row, req, settings):
     source["answers"].append(
         {
             "question_id": req.question_id,
+            "question_prompt": question["prompt"],
+            "source_context": question.get("source_context", ""),
+            "selected_answer": option["label"],
+            "supported_answer": next(
+                (item["label"] for item in question["options"] if item["points"] > 0), ""
+            ),
             "option_id": req.option_id,
             "reflection": req.reflection,
             "feedback": option["feedback"],

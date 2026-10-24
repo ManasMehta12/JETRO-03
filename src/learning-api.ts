@@ -16,6 +16,7 @@ export interface LearningCourse {
   video_duration_seconds: number;
   video_configured: boolean;
   knowledge_units: Record<string, unknown>[];
+  evidence_items?: { id: string; type: string; content: string | null; author: string; source_label: string; start_ms?: number | null; end_ms?: number | null }[];
 }
 export interface InterviewQuestion {
   id: string;
@@ -43,7 +44,7 @@ export interface LearningProgress {
     script_hash?: string;
     generation_method?: string;
     current_question: InterviewQuestion | null;
-    answers: { question_id: string; option_id: string; reflection: string; feedback: string; points: number; evidence_ids: string[] }[];
+    answers: { question_id: string; option_id: string; question_prompt?: string; selected_answer?: string; reflection: string; feedback: string; points: number; evidence_ids: string[] }[];
     result: { explanation_points: number; available_points: number; recognition_of_limits: number; critical_playground_error: boolean; playground_assessed?: boolean; notice: string } | null;
   } | null;
 }

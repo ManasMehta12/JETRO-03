@@ -15,7 +15,12 @@ test('real backend tracks in-page video, manual unlocks and a persisted intervie
     element.currentTime = 5;
   });
   await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).toBeLessThan(1);
-  await video.evaluate((element: HTMLVideoElement) => element.play());
+  await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.seeking)).toBe(false);
+  await video.evaluate((element: HTMLVideoElement) => { element.muted = true; });
+  await video.evaluate((element: HTMLVideoElement) => element.play().catch((error: DOMException) => {
+    // The player pauses the first play request while opening its server watch session.
+    if (error.name !== 'AbortError') throw error;
+  }));
   await expect(modules.getByRole('button', { name: 'Simulation playground', exact: true })).toBeEnabled({ timeout: 25_000 });
   await page.screenshot({ path: 'test-results/course-video-completed.png', fullPage: true });
   await modules.getByRole('button', { name: 'Simulation playground', exact: true }).click();
@@ -26,7 +31,8 @@ test('real backend tracks in-page video, manual unlocks and a persisted intervie
   await modules.getByRole('button', { name: 'Virtual interview', exact: true }).click();
   await expect(page.getByText('No simulation attempt was assessed.', { exact: false })).toBeVisible();
   await page.getByRole('button', { name: 'Start virtual interview', exact: true }).click();
-  for (const answer of ['b', 'b', 'c']) {
+  for (const [index, answer] of ['b', 'b', 'c'].entries()) {
+    await expect(page.getByText(`QUESTION ${index + 1}`, { exact: true })).toBeVisible();
     await page.locator(`input[type="radio"][value="${answer}"]`).check();
     await page.getByRole('button', { name: 'Submit response', exact: true }).click();
   }

@@ -255,5 +255,17 @@
         ]
       }
     ]
+  },
+  "studio_analysis": {
+    "source_notes": "Illustrative authored expert note for the hand-rotation inspection (ku_002):\nIllustrative: if the source gives no acceptance limit, stop and request the approved inspection criterion before judging the assembly.",
+    "proposals": [
+      {
+        "knowledge_unit_id": "ku_002",
+        "field": "exception",
+        "after": "Illustrative: if the source gives no acceptance limit, stop and request the approved inspection criterion before judging the assembly.",
+        "rationale": "Makes the unknown acceptance criterion explicit instead of inventing a threshold.",
+        "source_quote": "Illustrative: if the source gives no acceptance limit, stop and request the approved inspection criterion before judging the assembly."
+      }
+    ]
   }
 }

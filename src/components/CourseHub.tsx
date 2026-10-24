@@ -5,6 +5,8 @@ import type { AttemptState } from '../simulation';
 import { learningApi } from '../learning-api';
 import type { LearningCourse, LearningProgress } from '../learning-api';
 import { CoursePlayer } from './CoursePlayer';
+import { STORAGE_KEY } from '../persistence';
+import { createLearningReport } from '../learning-report';
 import '../course.css';
 
 function courseRecordingKey(value: string) {
@@ -43,7 +45,7 @@ export default function CourseHub() {
       const [nextCourse, nextProgress] = await Promise.all([learningApi.getCourse(), learningApi.getProgress()]);
       setCourse(nextCourse); setProgress(nextProgress);
       setMessage('Learning record connected. Complete each stage to continue.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to connect to the learning service.'); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to connect to the learning service.', true); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void initialize(); }, [initialize]);
@@ -51,7 +53,7 @@ export default function CourseHub() {
   const checkCourseUpdates = useCallback(async () => {
     try {
       const nextCourse = await learningApi.getCourse();
-      if (course && nextCourse.release_id !== course.release_id) {
+      if (course && (nextCourse.release_id !== course.release_id || nextCourse.release_content_hash !== course.release_content_hash || nextCourse.video_url !== course.video_url || nextCourse.video_duration_seconds !== course.video_duration_seconds)) {
         const nextProgress = await learningApi.getProgress();
         setCourse(nextCourse); setProgress(nextProgress); setTab('course');
         setSelectedAnswer(''); setReflection(''); setFailedAttempt(null);
@@ -61,9 +63,19 @@ export default function CourseHub() {
   }, [course, setMessage]);
   useEffect(() => {
     const refresh = () => { void checkCourseUpdates(); };
+    const publication = (event: StorageEvent) => { if (event.key === 'takumi-publication') refresh(); };
+    const visibleRefresh = () => { if (document.visibilityState === 'visible') refresh(); };
+    const interval = window.setInterval(visibleRefresh, 10_000);
     window.addEventListener('focus', refresh);
-    return () => window.removeEventListener('focus', refresh);
+    window.addEventListener('storage', publication);
+    return () => { window.removeEventListener('focus', refresh); window.removeEventListener('storage', publication); window.clearInterval(interval); };
   }, [checkCourseUpdates]);
+
+  function downloadReport() {
+    if (!course || !progress) return;
+    const url = URL.createObjectURL(new Blob([createLearningReport(course, progress)], { type: 'text/markdown;charset=utf-8' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'takumi-learning-report.md'; link.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
 
   const updateProgress = useCallback((next: LearningProgress) => setProgress(next), []);
   const recordAttempt = useCallback(async (attempt: AttemptState) => {
@@ -72,7 +84,7 @@ export default function CourseHub() {
       const next = await learningApi.submitPlayground(attempt);
       setProgress(next); setFailedAttempt(null);
       setMessage('Playground result saved. Your virtual interview is available.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Your result could not be saved. Retry below.'); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Your result could not be saved. Retry below.', true); }
     finally { setBusy(false); }
   }, []);
 
@@ -90,14 +102,14 @@ export default function CourseHub() {
     try {
       setProgress(await learningApi.completeSection(stage));
       setMessage(stage === 'course' ? 'Course section manually completed. The simulation playground is available.' : 'Playground section manually completed. No simulation score was recorded. Your virtual interview is available.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Section completion could not be saved. Please retry.'); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Section completion could not be saved. Please retry.', true); }
     finally { setBusy(false); }
   }
 
   async function startInterview() {
     setBusy(true);
     try { setProgress(await learningApi.startInterview()); setMessage(progress?.playground_result ? 'Interview started. Use the course evidence and your playground result to answer.' : 'Interview started. The playground was manually completed; no simulation score has been recorded.'); }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not start the interview.'); }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not start the interview.', true); }
     finally { setBusy(false); }
   }
   async function submitAnswer() {
@@ -107,44 +119,26 @@ export default function CourseHub() {
       const next = await learningApi.answerInterview({ session_id: interview.id, question_id: question.id, option_id: selectedAnswer, reflection, expected_revision: interview.revision });
       setProgress(next); setSelectedAnswer(''); setReflection('');
       setMessage(next.interview?.status === 'completed' ? 'Evaluation complete. Your course record has been updated.' : 'Response saved. Continue with the next interview question.');
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Your response could not be saved.'); }
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Your response could not be saved.', true); }
     finally { setBusy(false); }
   }
 
   const resetAllKnowledge = useCallback(async () => {
     setBusy(true);
     try {
-      let freshProgress: LearningProgress | null = null;
-      try {
-        freshProgress = await learningApi.resetKnowledge();
-      } catch (apiError) {
-        console.warn('Backend reset failed or unavailable:', apiError);
-      }
+      const freshProgress = await learningApi.resetKnowledge();
       try {
         const keysToRemove: string[] = [];
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
-          if (key && (key.startsWith('takumi-') || key.includes('bearing') || key.includes('attempt'))) {
+          if (key && (key.startsWith('takumi-course-attempt:') || key === STORAGE_KEY)) {
             keysToRemove.push(key);
           }
         }
         keysToRemove.forEach(k => localStorage.removeItem(k));
       } catch { /* Storage might be disabled */ }
 
-      if (freshProgress) {
-        setProgress(freshProgress);
-      } else if (progress) {
-        setProgress({
-          ...progress,
-          watched_seconds: 0,
-          course_completed: false,
-          playground_unlocked: false,
-          interview_unlocked: false,
-          playground_result: null,
-          interview: null,
-          manual_completion: {},
-        });
-      }
+      setProgress(freshProgress);
 
       setSelectedAnswer('');
       setReflection('');
@@ -153,13 +147,13 @@ export default function CourseHub() {
       setResetEpoch(epoch => epoch + 1);
       setTab('dashboard');
       setShowResetConfirm(false);
-      setMessage('All student knowledge, simulation attempts, and evaluation records have been reset.');
+      setMessage('Your watch progress, simulation result and interview have been reset.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : 'Unable to reset student knowledge.', true);
     } finally {
       setBusy(false);
     }
-  }, [progress, setMessage]);
+  }, [setMessage]);
 
   useEffect(() => {
     if (!showResetConfirm) return;
@@ -186,6 +180,7 @@ export default function CourseHub() {
           <RotateCcw size={13} />
           <span>Reset knowledge</span>
         </button>
+        <button className="learning-refresh-btn" type="button" aria-label="Check for course updates" title="Check for course updates" disabled={loading || busy} onClick={() => void checkCourseUpdates()}><RefreshCw size={14}/></button>
         <a className="learning-studio-link" href="/studio">Expert Studio</a>
         <span className="learning-profile"><span>AP</span>Apprentice</span>
       </div>
@@ -203,9 +198,9 @@ export default function CourseHub() {
           <section className="learning-panel learning-objectives"><div className="learning-panel-heading"><h2>What you will practice</h2><ClipboardCheck size={17}/></div><div className="learning-objective-grid"><div><span>01</span><h3>Inspect & prepare</h3><p>Identify the components and record observations before assembly.</p></div><div><span>02</span><h3>Assemble & verify</h3><p>Follow the guided sequence and check the supplied evidence.</p></div><div><span>03</span><h3>Explain your judgment</h3><p>Support a release or escalation decision in the final interview.</p></div></div></section>
           <section className="learning-panel learning-record-card"><div className="learning-panel-heading"><h2>Latest assessment</h2><ClipboardCheck size={17}/></div>{progress.playground_result ? <><div className="learning-score-grid">{Object.entries(progress.playground_result.scores).map(([label, value]) => <div key={label}><strong>{value}<small>/100</small></strong><span>{label}</span></div>)}</div><p>{interview?.status === 'completed' ? 'Virtual interview completed. Open the interview tab to review your evaluation.' : 'Playground result recorded. Continue to the interview to explain your decisions.'}</p><button className="learning-text-button" onClick={() => setTab('interview')}>Open interview <ArrowRight size={14}/></button></> : <div className="learning-no-result"><ClipboardCheck size={23}/>{progress.manual_completion?.playground ? <div><strong className="learning-manual-label">Manually completed</strong><p>No simulation score was recorded.</p><button className="learning-text-button" onClick={() => setTab('interview')}>{interview?.status === 'completed' ? 'View evaluation' : 'Continue to interview'}<ArrowRight size={14}/></button></div> : <p>Your playground scores and final evaluation will appear here.</p>}</div>}</section>
         </div>}
-        {tab === 'course' && <div className="learning-course-layout"><section className="learning-player-panel"><div className="learning-section-toolbar"><span>{progress.manual_completion?.course ? 'Manually completed' : progress.course_completed ? 'Course viewing complete' : 'Course section'}</span><div>{!progress.course_completed && <button className="learning-button learning-button-secondary" disabled={busy} onClick={() => void completeSection('course')}>Mark section complete<Check size={15}/></button>}{progress.playground_unlocked && <button className="learning-button" onClick={() => setTab('playground')}>Continue to playground<ArrowRight size={15}/></button>}</div></div><CoursePlayer key={course.release_id} course={course} progress={progress} onProgress={updateProgress} onMessage={setMessage}/></section></div>}
-        {tab === 'playground' && <div className="learning-embedded-workspace"><Playground key={`playground-${resetEpoch}`} persistenceKey={`takumi-course-attempt:${course.release_id}:${courseRecordingKey(course.video_url ?? '')}`} embedded onActivity={setActionCount} onMessage={setMessage} onAttemptComplete={recordAttempt} onContinueToInterview={() => { if (progress.interview_unlocked) setTab('interview'); else setMessage('Complete the playground section before continuing to the interview.'); }} headerAction={<>{!playgroundCompleted && <button type="button" className="learning-button learning-button-secondary header-complete-btn" disabled={busy} onClick={() => void completeSection('playground')}>Mark section complete<Check size={14}/></button>}{progress.interview_unlocked && <button type="button" className="learning-button header-interview-btn" onClick={() => setTab('interview')}>Continue to interview<ArrowRight size={14}/></button>}</>}/></div>}
-        {tab === 'interview' && <div className="learning-interview-layout"><section className="learning-panel learning-interview-panel"><div className="learning-panel-heading"><h2>{interview?.status === 'completed' ? 'Course evaluation' : 'Technical viva'}</h2><span className="learning-tag">{interview?.status === 'completed' ? 'Completed' : 'Structured interview'}</span></div>{!interview ? <div className="learning-interview-intro"><span className="learning-interview-icon"><MessageSquare size={29}/></span><h2>Explain the decisions you made</h2><p>Answer short, evidence based questions about your assembly checks, release decision and the limits of the simulation.</p><button disabled={busy} className="learning-button" onClick={() => void startInterview()}>Start virtual interview<ArrowRight size={15}/></button></div> : question ? <div className="learning-question"><div className="learning-eyebrow">QUESTION {interview.answers.length + 1}</div><h2>{question.prompt}</h2>{question.source_context && <details className="learning-script-source"><summary>Review approved course evidence</summary><p>{question.source_context}</p></details>}<fieldset disabled={busy}><legend className="learning-sr-only">Select your response</legend>{question.options.map(option => <label className={selectedAnswer === option.id ? 'is-selected' : ''} key={option.id}><input type="radio" name={question.id} value={option.id} checked={selectedAnswer === option.id} onChange={() => setSelectedAnswer(option.id)}/><span>{option.label}</span></label>)}</fieldset><label className="learning-reflection">Explain your reasoning <span>(optional)</span><textarea maxLength={2000} rows={3} placeholder="Refer to the observations and checks you completed…" value={reflection} onChange={event => setReflection(event.target.value)}/></label><button className="learning-button" disabled={busy || !selectedAnswer} onClick={() => void submitAnswer()}>{busy ? 'Saving response…' : 'Submit response'}<ArrowRight size={15}/></button></div> : interview.result ? <div className="learning-evaluation"><div className="learning-evaluation-score"><Check size={23}/><div><strong>{interview.result.explanation_points} / {interview.result.available_points}</strong><span>Interview assessment points</span></div></div><div className="learning-evaluation-row"><span>Simulation limits recognized</span><strong>{interview.result.recognition_of_limits} points</strong></div><div className="learning-evaluation-row"><span>Playground release decision</span><strong>{interview.result.playground_assessed === false || !progress.playground_result ? 'No simulation result' : interview.result.critical_playground_error ? 'Review needed' : 'Recorded'}</strong></div><h3>Review your responses</h3><div className="learning-answer-review">{interview.answers.map((answer, index) => <article key={answer.question_id}><strong>Question {index + 1} <span>{answer.points} points</span></strong><p>{answer.feedback}</p>{answer.reflection && <blockquote>{answer.reflection}</blockquote>}</article>)}</div></div> : null}</section><aside className="learning-panel learning-interview-context"><div className="learning-panel-heading"><h2>Playground evidence</h2><ClipboardCheck size={17}/></div>{progress.playground_result && <><span className="learning-eyebrow">{progress.playground_result.scenario === 'standard' ? 'A CLEAN ASSEMBLY' : 'THE UNCERTAIN FIT'}</span><h3>Your recorded result</h3><p>{progress.playground_result.outcome}</p><div className="learning-score-grid">{Object.entries(progress.playground_result.scores).map(([label, value]) => <div key={label}><strong>{value}<small>/100</small></strong><span>{label}</span></div>)}</div></>}{!progress.playground_result && progress.manual_completion?.playground && <div className="learning-manual-evidence"><span className="learning-manual-label">Manually completed</span><p>No simulation attempt was assessed. This interview will evaluate your course understanding.</p></div>}<div className="learning-interview-guidance"><h3>When answering</h3><p>Describe what you observed, the checks you completed and how the evidence supports your decision.</p></div>{interview && <div className="learning-outline-item"><Check size={16}/><span>{interview.answers.length} responses saved</span></div>}</aside></div>}
+        {tab === 'course' && <div className="learning-course-layout"><section className="learning-player-panel"><div className="learning-section-toolbar"><span>{progress.manual_completion?.course ? 'Manually completed' : progress.course_completed ? 'Course viewing complete' : 'Course section'}</span><div>{!progress.course_completed && <button className="learning-button learning-button-secondary" disabled={busy} onClick={() => void completeSection('course')}>Mark section complete<Check size={15}/></button>}{progress.playground_unlocked && <button className="learning-button" onClick={() => setTab('playground')}>Continue to playground<ArrowRight size={15}/></button>}</div></div><CoursePlayer key={`${course.release_id}:${course.release_content_hash}:${course.video_url}:${course.video_duration_seconds}`} course={course} progress={progress} onProgress={updateProgress} onMessage={setMessage}/></section></div>}
+        {tab === 'playground' && <div className="learning-embedded-workspace"><Playground key={`playground-${resetEpoch}`} persistenceKey={`takumi-course-attempt:${course.release_id}:${course.release_content_hash ?? ''}:${courseRecordingKey(course.video_url ?? '')}:${course.video_duration_seconds}`} embedded onActivity={setActionCount} onMessage={setMessage} onAttemptComplete={recordAttempt} onContinueToInterview={() => { if (progress.interview_unlocked) setTab('interview'); else setMessage('Complete the playground section before continuing to the interview.'); }} headerAction={<>{!playgroundCompleted && <button type="button" className="learning-button learning-button-secondary header-complete-btn" disabled={busy} onClick={() => void completeSection('playground')}>Mark section complete<Check size={14}/></button>}{progress.interview_unlocked && <button type="button" className="learning-button header-interview-btn" onClick={() => setTab('interview')}>Continue to interview<ArrowRight size={14}/></button>}</>}/></div>}
+        {tab === 'interview' && <div className="learning-interview-layout"><section className="learning-panel learning-interview-panel"><div className="learning-panel-heading"><h2>{interview?.status === 'completed' ? 'Course evaluation' : 'Technical viva'}</h2><span className="learning-tag">{interview?.status === 'completed' ? 'Completed' : 'Structured interview'}</span></div>{!interview ? <div className="learning-interview-intro"><span className="learning-interview-icon"><MessageSquare size={29}/></span><h2>Explain the decisions you made</h2><p>Answer short, evidence based questions about your assembly checks, release decision and the limits of the simulation.</p><button disabled={busy} className="learning-button" onClick={() => void startInterview()}>Start virtual interview<ArrowRight size={15}/></button></div> : question ? <div className="learning-question"><div className="learning-eyebrow">QUESTION {interview.answers.length + 1}</div><h2>{question.prompt}</h2>{question.source_context && <details className="learning-script-source"><summary>Review approved course evidence</summary><p>{question.source_context}</p></details>}<fieldset disabled={busy}><legend className="learning-sr-only">Select your response</legend>{question.options.map(option => <label className={selectedAnswer === option.id ? 'is-selected' : ''} key={option.id}><input type="radio" name={question.id} value={option.id} checked={selectedAnswer === option.id} onChange={() => setSelectedAnswer(option.id)}/><span>{option.label}</span></label>)}</fieldset><label className="learning-reflection">Explain your reasoning <span>(optional)</span><textarea maxLength={2000} rows={3} placeholder="Refer to the observations and checks you completed…" value={reflection} onChange={event => setReflection(event.target.value)}/></label><button className="learning-button" disabled={busy || !selectedAnswer} onClick={() => void submitAnswer()}>{busy ? 'Saving response…' : 'Submit response'}<ArrowRight size={15}/></button></div> : interview.result ? <div className="learning-evaluation"><div className="learning-evaluation-score"><Check size={23}/><div><strong>{interview.result.explanation_points} / {interview.result.available_points}</strong><span>Interview assessment points</span></div></div><div className="learning-evaluation-row"><span>Simulation limits recognized</span><strong>{interview.result.recognition_of_limits} points</strong></div><div className="learning-evaluation-row"><span>Playground release decision</span><strong>{interview.result.playground_assessed === false || !progress.playground_result ? 'No simulation result' : interview.result.critical_playground_error ? 'Review needed' : 'Recorded'}</strong></div><button className="learning-button learning-button-secondary" onClick={downloadReport}>Download evaluation report</button><h3>Review your responses</h3><div className="learning-answer-review">{interview.answers.map((answer, index) => <article key={answer.question_id}><strong>Question {index + 1} <span>{answer.points} points</span></strong>{answer.question_prompt && <p><strong>{answer.question_prompt}</strong></p>}{answer.selected_answer && <p>Selected: {answer.selected_answer}</p>}<p>{answer.feedback}</p><small>Evidence: {answer.evidence_ids.join(', ') || 'No linked source'}</small>{answer.reflection && <blockquote>{answer.reflection}</blockquote>}</article>)}</div></div> : null}</section><aside className="learning-panel learning-interview-context"><div className="learning-panel-heading"><h2>Playground evidence</h2><ClipboardCheck size={17}/></div>{progress.playground_result && <><span className="learning-eyebrow">{progress.playground_result.scenario === 'standard' ? 'A CLEAN ASSEMBLY' : 'THE UNCERTAIN FIT'}</span><h3>Your recorded result</h3><p>{progress.playground_result.outcome}</p><div className="learning-score-grid">{Object.entries(progress.playground_result.scores).map(([label, value]) => <div key={label}><strong>{value}<small>/100</small></strong><span>{label}</span></div>)}</div></>}{!progress.playground_result && progress.manual_completion?.playground && <div className="learning-manual-evidence"><span className="learning-manual-label">Manually completed</span><p>No simulation attempt was assessed. This interview will evaluate your course understanding.</p></div>}{course.evidence_items && <details className="learning-approved-evidence"><summary>Approved source evidence</summary>{course.evidence_items.map(item => <article key={item.id}><strong>{item.id} · {item.author}</strong><p>{item.content || 'Recording segment'}</p><small>{item.source_label}</small></article>)}</details>}<div className="learning-interview-guidance"><h3>When answering</h3><p>Describe what you observed, the checks you completed and how the evidence supports your decision.</p></div>{interview && <div className="learning-outline-item"><Check size={16}/><span>{interview.answers.length} responses saved</span></div>}</aside></div>}
       </>}
     </main>
     <footer className="learning-status" aria-label="Learning status"><div><ShieldCheck size={15}/><span role={messageIsError ? 'alert' : undefined}>{message}</span>{tab === 'playground' && <span className="learning-action-count">{actionCount} recorded actions</span>}{failedAttempt && <button disabled={busy} onClick={() => void recordAttempt(failedAttempt)}>{busy ? 'Saving…' : 'Retry saving result'}</button>}</div><div><span>{interview?.result?.notice || 'Illustrative training · Structured assessment · Instructor review required'}</span>{course && <span>{course.video_configured ? 'Course recording connected' : 'Awaiting course video URL'}</span>}</div></footer>

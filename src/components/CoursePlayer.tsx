@@ -77,7 +77,7 @@ export function CoursePlayer({ course, progress, onProgress, onMessage }: Course
       session.current = playback.session_id;
       maxWatched.current = playback.position_seconds;
       lastPosition.current = playback.position_seconds;
-      player.currentTime = playback.position_seconds;
+      if (Math.abs(player.currentTime - playback.position_seconds) > 0.1) player.currentTime = playback.position_seconds;
       callbacks.current.onProgress(playback.progress);
       if (document.visibilityState === 'visible') await player.play();
     } catch (error) {
@@ -101,7 +101,10 @@ export function CoursePlayer({ course, progress, onProgress, onMessage }: Course
     const player = video.current;
     if (!player || progressRef.current.course_completed) return;
     if (player.currentTime > maxWatched.current + 0.5) {
-      player.currentTime = maxWatched.current;
+      // Restart an unwatched stream instead of seeking back into an unavailable
+      // zero-time keyframe (some WebM recordings otherwise stay in seeking state).
+      if (maxWatched.current === 0) player.load();
+      else player.currentTime = maxWatched.current;
       callbacks.current.onMessage('Watch the course in sequence. You can replay any section you have already watched.');
     }
     lastPosition.current = player.currentTime;
@@ -125,7 +128,7 @@ export function CoursePlayer({ course, progress, onProgress, onMessage }: Course
         <video ref={video} controls playsInline preload="metadata" aria-label={`${course.title} course video`}
           src={course.video_url} onPlay={() => { void start(); }} onTimeUpdate={track}
           onSeeking={seek} onPause={persist} onEnded={finish}
-          onLoadedMetadata={() => { if (video.current) video.current.currentTime = progressRef.current.watched_seconds; }}
+          onLoadedMetadata={() => { if (video.current && progressRef.current.watched_seconds > 0) video.current.currentTime = progressRef.current.watched_seconds; }}
           onRateChange={() => { if (video.current) video.current.playbackRate = 1; }}
           onError={() => callbacks.current.onMessage('The course recording could not be loaded. Check that the configured URL points to a playable video file.')} />
         {connecting && <span className="course-video-status" role="status">Connecting to course…</span>}
