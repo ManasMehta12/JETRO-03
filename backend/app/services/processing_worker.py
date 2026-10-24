@@ -186,19 +186,23 @@ def run_once(sessionmaker, settings, extractor: VideoExtractor, worker_id: str) 
             )
             result = extraction.result
             job.model_id = extraction.model_id
+            # Reject unusable output before checkpointing, so the retry asks the model again.
+            draft_content = extraction_service.build_draft_content(
+                result, media, f"AI extraction ({job.model_id}, unreviewed)"
+            )
             heartbeat(
                 extraction=result.model_dump(mode="json"),
                 usage=extraction.usage,
                 model_id=extraction.model_id,
             )
         else:
-            result = VideoExtractionResult.model_validate(job.extraction)
+            draft_content = extraction_service.build_draft_content(
+                VideoExtractionResult.model_validate(job.extraction),
+                media,
+                f"AI extraction ({job.model_id}, unreviewed)",
+            )
         stage("detecting_gaps")
-        units, evidence_rows, warnings = extraction_service.build_draft_content(
-            result,
-            media,
-            f"AI extraction ({job.model_id}, unreviewed)",
-        )
+        units, evidence_rows, warnings = draft_content
         try:
             with sessionmaker() as session, session.begin():
                 draft_id = extraction_service.persist_extraction(

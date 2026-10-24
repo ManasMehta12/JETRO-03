@@ -191,6 +191,21 @@ def test_schema_invalid_retries_once(live_client, sample_videos, kind):
     assert fake.calls.count("upload") == 1
 
 
+def test_unusable_output_is_not_checkpointed(live_client, sample_videos):
+    client = live_client
+    task_id, media_id = setup_recording(client, sample_videos)
+    job_id = process(client, task_id, media_id).json()["job_id"]
+    fake = FakeExtractor(extraction(action="   "), extraction())
+    run(client, fake)
+    assert job(client, job_id)["status"] == "queued"
+    assert job(client, job_id)["error"]["code"] == "AI_RESPONSE_INVALID"
+    make_due(client, job_id)
+    run(client, fake)
+    assert job(client, job_id)["status"] == "completed"
+    assert fake.calls.count("extract") == 2
+    assert fake.calls.count("upload") == 1
+
+
 def test_invalid_interval_keeps_unit_without_evidence(live_client, sample_videos):
     client = live_client
     task_id, media_id = setup_recording(client, sample_videos)
@@ -412,16 +427,16 @@ def test_checkpoint_resume_skips_provider_extraction(live_client, sample_videos,
     client = live_client
     task_id, media_id = setup_recording(client, sample_videos)
     job_id = process(client, task_id, media_id).json()["job_id"]
-    build = extraction_service.build_draft_content
+    persist = extraction_service.persist_extraction
 
     def interrupted(*args):
         raise ProviderError("PROCESSING_TIMEOUT", "Interrupted after checkpoint.", True)
 
-    monkeypatch.setattr(extraction_service, "build_draft_content", interrupted)
+    monkeypatch.setattr(extraction_service, "persist_extraction", interrupted)
     fake = FakeExtractor()
     run(client, fake)
     assert job(client, job_id)["status"] == "queued"
-    monkeypatch.setattr(extraction_service, "build_draft_content", build)
+    monkeypatch.setattr(extraction_service, "persist_extraction", persist)
     make_due(client, job_id)
     run(client, fake)
     assert job(client, job_id)["status"] == "completed"

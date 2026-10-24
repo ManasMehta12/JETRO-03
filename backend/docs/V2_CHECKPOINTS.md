@@ -63,7 +63,7 @@ Observed checkpoint evidence is recorded below. Implementation is not proof of s
 
 All commands run from `backend/` after the docs/scripts wave.
 
-- `uv run pytest -q` → 192 passed, 1 skipped (`tests/test_gemini_live.py`, opt-in; live Gemini unverified).
+- `uv run pytest -q` → 193 passed, 1 skipped (`tests/test_gemini_live.py`, opt-in; live Gemini unverified). Includes the post-review regression `test_unusable_output_is_not_checkpointed`: model output with no usable steps is no longer checkpointed, so the single retry re-asks the model.
 - `uv run ruff check .` → no issues; `uv run ruff format --check .` → all files formatted.
 - `uv run python scripts/export_contracts.py` → OpenAPI, six schemas (`contracts/media.json`, `contracts/processing-job.json` new) and 16 examples; examples reverted because ids are random.
 - Fresh server with `ENABLE_MEDIA_UPLOAD/STREAMING/PROCESSING=true` and fixture provider, `uv run python scripts/video_flow.py --video /tmp/takumi_demo.mp4` (5 s h264+aac) printed `media_id=…`, `duration_ms=5000`, `range=206`, then `HTTP 503: … AI_PROVIDER_UNAVAILABLE … "required":["AI_PROVIDER=gemini","ENABLE_LIVE_EXTRACTION=true","GEMINI_API_KEY","GEMINI_MODEL"]`, exit 1 (expected: live not configured).
