@@ -50,7 +50,7 @@ async function completeChecks(page: Page, withQuiz = true) {
 test.beforeEach(async ({ page }) => { await page.goto('/'); });
 
 test('standard flow records all checks, correct quiz answers and supported release', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Bearing assembly.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bearing assembly' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Request observation', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Release assembly', exact: true })).toBeDisabled();
   await page.getByRole('tab', { name: 'Knowledge check', exact: true }).click();
@@ -142,7 +142,7 @@ test('3D viewport and controls render, and desktop screenshot is captured', asyn
 
 test('mobile retains key controls without horizontal page overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.getByRole('heading', { name: 'Bearing assembly.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bearing assembly' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Select Ball bearing', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Inspect component', exact: true }).click();
   await expect(page.getByText('1 / 4 inspected', { exact: true })).toBeVisible();
