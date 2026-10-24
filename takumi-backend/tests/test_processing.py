@@ -226,19 +226,33 @@ def test_invalid_interval_keeps_unit_without_evidence(live_client, sample_videos
     assert response.json()["error"]["code"] == "PUBLICATION_BLOCKED"
 
 
-def test_timeouts_exhaust_retry_budget_preserve_media(live_client, sample_videos):
+@pytest.mark.parametrize("failure_stage", ["upload", "extract"])
+def test_timeouts_exhaust_retry_budget_preserve_media(
+    live_client, sample_videos, monkeypatch, failure_stage
+):
     client = live_client
     task_id, media_id = setup_recording(client, sample_videos)
     job_id = process(client, task_id, media_id).json()["job_id"]
     error = ProviderError("PROCESSING_TIMEOUT", "Provider timed out.", True)
     fake = FakeExtractor(error, error, error)
+    if failure_stage == "upload":
+
+        def timeout(*args):
+            fake.calls.append("upload")
+            raise error
+
+        monkeypatch.setattr(fake, "upload_file", timeout)
     for attempt in range(1, 4):
         run(client, fake)
         result = job(client, job_id)
         assert result["attempt_count"] == attempt
         assert result["status"] == ("queued" if attempt < 3 else "failed")
+        assert result["error"]["code"] == "PROCESSING_TIMEOUT"
         make_due(client, job_id)
     assert result["draft_id"] is None
+    if failure_stage == "upload":
+        assert fake.calls.count("upload") == 3
+        assert "extract" not in fake.calls
     with client.app.state.sessionmaker() as session:
         media = session.get(MediaAsset, media_id)
         assert (client.app.state.settings.media_storage_dir / media.storage_key).exists()

@@ -1,7 +1,9 @@
+import asyncio
 import json
 import shutil
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -19,7 +21,7 @@ NUM_CTX = 8192
 def _normalize(exc: Exception) -> ProviderError:
     if isinstance(exc, ProviderError):
         return exc
-    if isinstance(exc, httpx.TimeoutException):
+    if isinstance(exc, (TimeoutError, subprocess.TimeoutExpired, httpx.TimeoutException)):
         return ProviderError("PROCESSING_TIMEOUT", "AI provider request timed out.", True)
     if isinstance(exc, httpx.HTTPStatusError):
         if exc.response.status_code == 404:
@@ -43,6 +45,13 @@ def _transcript_file(name: str) -> ProviderFile:
     return ProviderFile(name=name, uri=name, mime_type="application/json", state="ACTIVE")
 
 
+def _remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("Transcription deadline exceeded.")
+    return remaining
+
+
 class OllamaVideoExtractor:
     """Transcript-based extraction: ffmpeg here, whisper.cpp and Ollama on a LAN host."""
 
@@ -54,7 +63,40 @@ class OllamaVideoExtractor:
         self._http = httpx.Client(base_url=settings.ollama_base_url, timeout=self._timeout)
         self._stt = httpx.Client(base_url=settings.whisper_base_url, timeout=self._timeout)
 
-    def _transcribe(self, path: Path) -> tuple[str | None, list[dict]]:
+    def _stt_client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            base_url=self._stt.base_url,
+            headers=self._stt.headers,
+            timeout=self._timeout,
+        )
+
+    def _request_transcription(self, audio: bytes, deadline: float) -> httpx.Response:
+        async def request():
+            # Both routes share the budget left after conversion. Per-chunk activity
+            # must not extend it. Cancellation closes the client and local request.
+            async with asyncio.timeout(_remaining(deadline)):
+                async with self._stt_client() as client:
+                    response = await client.post(
+                        "/inference",
+                        files={"file": ("audio.wav", audio, "audio/wav")},
+                        data={"response_format": "verbose_json", "temperature": "0.0"},
+                    )
+                    # Only a missing route triggers WhisperServer.app fallback.
+                    if response.status_code == 404:
+                        response = await client.post(
+                            "/v1/audio/transcriptions",
+                            files={"file": ("audio.wav", audio, "audio/wav")},
+                            data={
+                                "response_format": "verbose_json",
+                                "temperature": "0.0",
+                                "timestamp_granularities[]": "segment",
+                            },
+                        )
+                    return response
+
+        return asyncio.run(request())
+
+    def _transcribe(self, path: Path, deadline: float) -> tuple[str | None, list[dict]]:
         with tempfile.TemporaryDirectory() as tmp:
             wav = Path(tmp) / "audio.wav"
             try:
@@ -63,30 +105,16 @@ class OllamaVideoExtractor:
                     + ["-ar", "16000", "-c:a", "pcm_s16le", str(wav)],
                     check=True,
                     capture_output=True,
-                    timeout=self._timeout,
+                    timeout=_remaining(deadline),
                 )
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+            except TimeoutError:
+                raise
+            except (subprocess.CalledProcessError, OSError):
                 raise ProviderError(
                     "PROCESSING_FAILED", "Could not extract audio from the recording.", False
                 ) from None
             audio = wav.read_bytes()
-            response = self._stt.post(
-                "/inference",
-                files={"file": ("audio.wav", audio, "audio/wav")},
-                data={"response_format": "verbose_json", "temperature": "0.0"},
-            )
-            # WhisperServer.app uses an OpenAI-compatible route and its selected default model.
-            # Only a missing route triggers fallback; provider failures retain their retry policy.
-            if response.status_code == 404:
-                response = self._stt.post(
-                    "/v1/audio/transcriptions",
-                    files={"file": ("audio.wav", audio, "audio/wav")},
-                    data={
-                        "response_format": "verbose_json",
-                        "temperature": "0.0",
-                        "timestamp_granularities[]": "segment",
-                    },
-                )
+            response = self._request_transcription(audio, deadline)
         response.raise_for_status()
         try:
             body = response.json()
@@ -120,8 +148,11 @@ class OllamaVideoExtractor:
             raise _normalize(exc) from None
 
     def upload_file(self, path: Path, mime_type: str, display_name: str) -> ProviderFile:
+        deadline = time.monotonic() + self._timeout
         try:
-            language, segments = self._transcribe(path)
+            language, segments = self._transcribe(path, deadline)
+            # Parsing and temporary-file cleanup also consume the stage's budget.
+            _remaining(deadline)
         except Exception as exc:
             raise _normalize(exc) from None
         if not segments:
