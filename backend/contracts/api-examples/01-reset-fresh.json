@@ -1,0 +1,19 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/demo/reset",
+    "body": {
+      "scope": "full_demo",
+      "confirm": "RESET_DEMO_DATA",
+      "state": "fresh"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "success": true,
+      "scope": "full_demo",
+      "state": "fresh"
+    }
+  }
+}

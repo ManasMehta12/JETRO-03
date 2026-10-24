@@ -1,0 +1,87 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "knowledge_unit_id": {
+      "title": "Knowledge Unit Id",
+      "type": "string"
+    },
+    "question": {
+      "title": "Question",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "pending",
+        "answered",
+        "premise_rejected",
+        "unobservable",
+        "deferred"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "gap_type": {
+      "enum": [
+        "missing_reasoning",
+        "changed_condition",
+        "beginner_mistake"
+      ],
+      "title": "Gap Type",
+      "type": "string"
+    },
+    "priority": {
+      "title": "Priority",
+      "type": "integer"
+    },
+    "answer": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Answer"
+    },
+    "evidence_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Evidence Id"
+    },
+    "answered_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Answered At"
+    }
+  },
+  "required": [
+    "id",
+    "knowledge_unit_id",
+    "question",
+    "status",
+    "gap_type",
+    "priority"
+  ],
+  "title": "ClarificationOut",
+  "type": "object"
+}

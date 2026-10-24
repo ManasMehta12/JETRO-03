@@ -1,0 +1,44 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/tasks/task_001/ask",
+    "body": {
+      "question": "Why do you inspect the bearing housing?"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "status": "answered",
+      "release_id": "release_2b742612c999",
+      "claims": [
+        {
+          "text": "Illustrative: possible seal or bearing damage",
+          "knowledge_unit_id": "ku_001",
+          "field": "interpretation",
+          "evidence_ids": [
+            "ev_e25a26fae480"
+          ]
+        },
+        {
+          "text": "Illustrative: grease leaking at the housing seal or discoloration on the housing",
+          "knowledge_unit_id": "ku_001",
+          "field": "cue",
+          "evidence_ids": [
+            "ev_e25a26fae480"
+          ]
+        },
+        {
+          "text": "Illustrative: do not rotate the shaft; escalate to a supervisor before continuing",
+          "knowledge_unit_id": "ku_001",
+          "field": "decision",
+          "evidence_ids": [
+            "ev_e25a26fae480"
+          ]
+        }
+      ],
+      "missing_information": [],
+      "review_required": false
+    }
+  }
+}

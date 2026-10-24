@@ -1,0 +1,266 @@
+{
+  "$defs": {
+    "TrainingPackEvidence": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "video_segment",
+            "expert_response",
+            "reviewer_correction"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "author": {
+          "title": "Author",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Content"
+        },
+        "source_label": {
+          "enum": [
+            "real",
+            "illustrative"
+          ],
+          "title": "Source Label",
+          "type": "string"
+        },
+        "media_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Media Id"
+        },
+        "start_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Start Ms"
+        },
+        "end_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "End Ms"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "author",
+        "content",
+        "source_label",
+        "media_id",
+        "start_ms",
+        "end_ms"
+      ],
+      "title": "TrainingPackEvidence",
+      "type": "object"
+    },
+    "TrainingPackKU": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "cue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cue"
+        },
+        "interpretation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interpretation"
+        },
+        "decision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision"
+        },
+        "exception": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exception"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "field_evidence": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "propertyNames": {
+            "enum": [
+              "action",
+              "cue",
+              "interpretation",
+              "decision",
+              "exception"
+            ]
+          },
+          "title": "Field Evidence",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "action",
+        "evidence_ids",
+        "field_evidence"
+      ],
+      "title": "TrainingPackKU",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "task_id": {
+      "title": "Task Id",
+      "type": "string"
+    },
+    "release_id": {
+      "title": "Release Id",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "equipment": {
+      "title": "Equipment",
+      "type": "string"
+    },
+    "language": {
+      "title": "Language",
+      "type": "string"
+    },
+    "source_label": {
+      "enum": [
+        "real",
+        "illustrative"
+      ],
+      "title": "Source Label",
+      "type": "string"
+    },
+    "approved_by": {
+      "title": "Approved By",
+      "type": "string"
+    },
+    "approved_at": {
+      "format": "date-time",
+      "title": "Approved At",
+      "type": "string"
+    },
+    "content_hash": {
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "knowledge_units": {
+      "items": {
+        "$ref": "#/$defs/TrainingPackKU"
+      },
+      "title": "Knowledge Units",
+      "type": "array"
+    },
+    "evidence_items": {
+      "items": {
+        "$ref": "#/$defs/TrainingPackEvidence"
+      },
+      "title": "Evidence Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "task_id",
+    "release_id",
+    "version",
+    "title",
+    "equipment",
+    "language",
+    "source_label",
+    "approved_by",
+    "approved_at",
+    "content_hash",
+    "knowledge_units",
+    "evidence_items"
+  ],
+  "title": "TrainingPack",
+  "type": "object"
+}
