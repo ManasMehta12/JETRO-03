@@ -141,9 +141,20 @@ PROCESSING_PROVIDER_TIMEOUT_SECONDS=300
 PROCESSING_JOB_LEASE_SECONDS=360
 ```
 When whisper-server runs on the same Mac as this backend, use `WHISPER_BASE_URL=http://127.0.0.1:<whisper port>` (for example `http://127.0.0.1:12017`). If the Technical Viva API in `backend/` already uses port 8000, start this server with `--port 8001` and pass `--base-url http://localhost:8001` to `scripts/video_flow.py`.
-`OPENROUTER_MODEL` is a comma-separated fallback list sent as OpenRouter's `models` array: when a model errors (downtime, rate limit), OpenRouter tries the next one. Requests set `provider.require_parameters=true`, so they route only to providers that honor the strict JSON schema. The default list uses free models that advertise structured outputs; keep it `:free`-only (plus `openrouter/free`) to avoid charges. Free models are rate-limited (about 50 requests/day without purchased credits). Output still validates against the application schema; invalid output fails as retryable `AI_RESPONSE_INVALID`. The job's `model_id` records the model that actually answered. OpenRouter receives the transcript, not the original video/audio; transcription stays on the trusted LAN. Real-key availability and extraction quality are unverified.
+
+The existing WhisperServer.app on the Mac is also supported. It listens on IPv6 loopback, so use `WHISPER_BASE_URL=http://[::1]:12017` for a backend on that Mac. The backend tries whisper.cpp's `/inference` first and, on HTTP 404, uses `/v1/audio/transcriptions` with `response_format=verbose_json` and segment timestamps. WhisperServer.app uses its selected default model; no second model server is needed. Check this variant with:
+```sh
+curl --noproxy '*' -g 'http://[::1]:12017/v1/models'
+curl --noproxy '*' -g 'http://[::1]:12017/v1/audio/transcriptions' \
+  -F file=@/tmp/p.wav -F response_format=verbose_json \
+  -F 'timestamp_granularities[]=segment'
+```
+
+`OPENROUTER_MODEL` is a comma-separated fallback list sent as OpenRouter's `models` array: when a model errors (downtime, rate limit), OpenRouter tries the next one. Requests set `provider.require_parameters=true`, so they route only to providers that honor the strict JSON schema. The default list uses free models that advertise structured outputs; keep it `:free`-only (plus `openrouter/free`) to avoid charges. Free models are rate-limited (about 50 requests/day without purchased credits). Output still validates against the application schema; invalid output fails as retryable `AI_RESPONSE_INVALID`. The job's `model_id` records the model that actually answered. OpenRouter receives the transcript, not the original video/audio; transcription stays on the trusted LAN. A synthetic live smoke passed as described below; extraction quality on real expert recordings remains unverified.
 
 ## Verification status
+Mac smoke (2026-10-25): a generated, narrated 13.1-second MP4 passed real upload, HTTP 206 playback, local WhisperServer.app transcription and live OpenRouter extraction into an unreviewed draft with four timestamp-linked knowledge units. The first Nemotron request did not complete after more than seven minutes; it was manually interrupted, the worker reclaimed the expired lease, and prioritizing the Xing4 free fallback completed the same job using its cached transcript. Model fallback is triggered by provider errors, not a slow successful HTTP response; a free-model list does not guarantee bounded completion time. This is a synthetic integration check, not validation of real demonstration quality. Current Takumi checks: 211 passed, one opt-in Gemini test skipped; ruff check and format passed.
+
 C4 gates: 113 tests passed; real-server upload and range smoke passed.
 C5 gates: 192 tests passed, 1 opt-in live test skipped; ruff check/format clean.
 Processing, retries, recovery and V1 integration use mocked provider tests.
