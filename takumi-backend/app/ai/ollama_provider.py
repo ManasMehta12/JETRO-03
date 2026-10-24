@@ -69,11 +69,24 @@ class OllamaVideoExtractor:
                 raise ProviderError(
                     "PROCESSING_FAILED", "Could not extract audio from the recording.", False
                 ) from None
+            audio = wav.read_bytes()
             response = self._stt.post(
                 "/inference",
-                files={"file": ("audio.wav", wav.read_bytes(), "audio/wav")},
+                files={"file": ("audio.wav", audio, "audio/wav")},
                 data={"response_format": "verbose_json", "temperature": "0.0"},
             )
+            # WhisperServer.app uses an OpenAI-compatible route and its selected default model.
+            # Only a missing route triggers fallback; provider failures retain their retry policy.
+            if response.status_code == 404:
+                response = self._stt.post(
+                    "/v1/audio/transcriptions",
+                    files={"file": ("audio.wav", audio, "audio/wav")},
+                    data={
+                        "response_format": "verbose_json",
+                        "temperature": "0.0",
+                        "timestamp_granularities[]": "segment",
+                    },
+                )
         response.raise_for_status()
         try:
             body = response.json()

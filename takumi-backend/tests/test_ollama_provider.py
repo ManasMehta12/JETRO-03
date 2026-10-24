@@ -106,6 +106,47 @@ def test_transcription_caches_filtered_segments(provider_factory, sample_videos,
     }
 
 
+def test_transcription_supports_whisperserver_app(provider_factory, sample_videos, tmp_path):
+    paths = []
+
+    def whisper(request):
+        paths.append(request.url.path)
+        assert request.method == "POST"
+        if request.url.path == "/inference":
+            return httpx.Response(404)
+        assert request.url.path == "/v1/audio/transcriptions"
+        assert b'name="file"' in request.content
+        assert b'name="timestamp_granularities[]"' in request.content
+        assert b"verbose_json" in request.content
+        return httpx.Response(
+            200,
+            json={"segments": [{"start": 0.01, "end": 1.51, "text": " Inspect housing "}]},
+        )
+
+    provider = provider_factory(whisper=whisper)
+    uploaded = provider.upload_file(sample_videos / "ok.mp4", "video/mp4", "app_test")
+    assert paths == ["/inference", "/v1/audio/transcriptions"]
+    assert json.loads((tmp_path / "media" / uploaded.name).read_text()) == {
+        "language": None,
+        "segments": [{"start_ms": 10, "end_ms": 1510, "text": "Inspect housing"}],
+    }
+
+
+def test_transcription_does_not_fallback_on_server_error(provider_factory, sample_videos):
+    paths = []
+
+    def whisper(request):
+        paths.append(request.url.path)
+        return httpx.Response(503)
+
+    provider = provider_factory(whisper=whisper)
+    with pytest.raises(ProviderError) as error:
+        provider.upload_file(sample_videos / "ok.mp4", "video/mp4", "failed_test")
+    assert paths == ["/inference"]
+    assert error.value.code == "AI_PROVIDER_UNAVAILABLE"
+    assert error.value.retryable
+
+
 def test_upload_extract_delete_round_trip(provider_factory, sample_videos, task):
     provider = provider_factory()
     uploaded = provider.upload_file(sample_videos / "ok.mp4", "video/mp4", "media_test")
