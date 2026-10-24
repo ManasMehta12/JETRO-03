@@ -132,5 +132,140 @@
   "baseline_release": {
     "release_id": "release_001",
     "approval_note": "Illustrative baseline release seeded for demonstration."
+  },
+  "learning_interview": {
+    "source_label": "illustrative",
+    "rubric_version": 1,
+    "questions": [
+      {
+        "id": "explain-check",
+        "prompt": "Why should the inspection and verification checks be recorded before a release decision?",
+        "options": [
+          {
+            "id": "a",
+            "label": "The model looks complete, so no record is needed.",
+            "points": 0,
+            "recognizes_limits": false,
+            "feedback": "A rendered view is insufficient evidence for a release decision.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          },
+          {
+            "id": "b",
+            "label": "The decision should be supported by the observations and authored check results.",
+            "points": 2,
+            "recognizes_limits": true,
+            "feedback": "The recorded checks make the decision traceable; the rendering alone cannot validate real fit.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Recording is useful only after a problem occurs.",
+            "points": 0,
+            "recognizes_limits": false,
+            "feedback": "Record checks before deciding so the reasoning remains traceable.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "changed-condition",
+        "prompt": "A later check raises an unresolved concern about alignment. What should happen next?",
+        "options": [
+          {
+            "id": "a",
+            "label": "Release the assembly because the earlier animation succeeded.",
+            "points": 0,
+            "recognizes_limits": false,
+            "feedback": "An animation does not resolve the later concern.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          },
+          {
+            "id": "b",
+            "label": "Stop release and ask for review of the unresolved evidence.",
+            "points": 2,
+            "recognizes_limits": true,
+            "feedback": "Preserve the unresolved observation and seek review before release.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          },
+          {
+            "id": "c",
+            "label": "Ignore the concern if the assembly looks centered.",
+            "points": 0,
+            "recognizes_limits": false,
+            "feedback": "Visual confidence cannot resolve missing approved evidence.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          }
+        ]
+      },
+      {
+        "id": "evidence-limits",
+        "prompt": "What can this illustrative exercise establish about a real bearing assembly?",
+        "options": [
+          {
+            "id": "a",
+            "label": "It certifies the assembly is safe for service.",
+            "points": 0,
+            "recognizes_limits": false,
+            "feedback": "This exercise does not certify mechanical safety or real-world readiness.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          },
+          {
+            "id": "b",
+            "label": "It proves the real assembly meets required tolerances.",
+            "points": 0,
+            "recognizes_limits": false,
+            "feedback": "The scripted exercise does not calculate or verify physical tolerances.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          },
+          {
+            "id": "c",
+            "label": "It records training choices; supervised practical assessment is still needed.",
+            "points": 2,
+            "recognizes_limits": true,
+            "feedback": "The report describes training decisions and their rationale. Practical assessment remains necessary.",
+            "evidence_ids": [
+              "ev_001",
+              "ev_003"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "studio_analysis": {
+    "source_notes": "Illustrative authored expert note for the hand-rotation inspection (ku_002):\nIllustrative: if the source gives no acceptance limit, stop and request the approved inspection criterion before judging the assembly.",
+    "proposals": [
+      {
+        "knowledge_unit_id": "ku_002",
+        "field": "exception",
+        "after": "Illustrative: if the source gives no acceptance limit, stop and request the approved inspection criterion before judging the assembly.",
+        "rationale": "Makes the unknown acceptance criterion explicit instead of inventing a threshold.",
+        "source_quote": "Illustrative: if the source gives no acceptance limit, stop and request the approved inspection criterion before judging the assembly."
+      }
+    ]
   }
 }

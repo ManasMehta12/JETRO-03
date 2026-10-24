@@ -13,6 +13,7 @@ from app.core.errors import AppError
 from app.database import utcnow
 
 DEMO_USERS = {
+    "admin": ("admin_001", "admin", "Demo Tutor Administrator"),
     "expert": ("expert_001", "expert", "Demo Expert"),
     "reviewer": ("reviewer_001", "reviewer", "Demo Reviewer"),
     "apprentice": ("apprentice_001", "apprentice", "Demo Apprentice"),

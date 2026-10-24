@@ -50,6 +50,12 @@ class Settings(BaseSettings):
     log_model_inputs: bool = False
     cors_origins: str = "http://localhost:3000"
     max_request_body_kb: int = 1024
+    enable_studio_ai_analysis: bool = True
+    studio_ai_model: str = "gemini-flash-latest"
+    studio_ai_timeout_seconds: int = Field(45, ge=5, le=120)
+    studio_ai_thinking_level: Literal["low", "medium", "high"] = "low"
+    course_video_url: str = ""
+    course_video_duration_seconds: int = Field(60, ge=1, le=86400)
 
     @property
     def cors_origin_list(self) -> list[str]:

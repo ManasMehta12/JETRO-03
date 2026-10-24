@@ -8,7 +8,7 @@ from app.core.errors import feature_disabled
 from app.core.security import CurrentUser, get_current_user, require_roles
 from app.database import get_db
 from app.models.schemas import PublishOut, PublishRequest, ReleaseOut, TrainingPack
-from app.services import publication_service
+from app.services import publication_service, studio_service
 
 router = APIRouter(tags=["releases"])
 DB = Annotated[Session, Depends(get_db)]
@@ -22,9 +22,10 @@ def publish(
     response: Response,
     session: DB,
     user: Annotated[CurrentUser, Depends(require_roles("reviewer"))],
+    settings: Annotated[Settings, Depends(get_settings)],
 ):
     with session.begin():
-        release, created = publication_service.publish(session, task_id, req, user)
+        release, created = studio_service.publish_release(session, task_id, req, user, settings)
     response.status_code = 201 if created else 200
     return PublishOut(
         release_id=release.id,

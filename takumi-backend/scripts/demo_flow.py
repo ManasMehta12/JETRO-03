@@ -62,6 +62,27 @@ def run_flow(client, record=None) -> None:
     draft = request("GET", "/tasks/task_001/draft", headers=expert)
     assert evidence_id in draft["knowledge_units"][0]["field_evidence"]["interpretation"]
     step("read-updated-draft")
+    # Explicitly defer unanswered prompts and evaluate the exact reviewed revision.
+    # This keeps the legacy reviewer route governed by the Studio publication policy.
+    for gap in draft["clarifications"]:
+        if gap["status"] == "pending":
+            request(
+                "POST",
+                f"/clarifications/{gap['id']}/respond",
+                {
+                    "expected_draft_revision": draft["revision"],
+                    "disposition": "deferred",
+                    "answer": "Demo reviewer deferred this unanswered prompt; no claim added.",
+                },
+                expert,
+            )
+    evaluation = request(
+        "POST",
+        "/studio/tasks/task_001/evaluate",
+        {"expected_revision": draft["revision"]},
+        expert,
+    )
+    assert evaluation["passed"], evaluation
     published = request(
         "POST",
         "/tasks/task_001/publish",

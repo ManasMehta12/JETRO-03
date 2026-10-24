@@ -14,6 +14,26 @@ from tests.conftest import auth
 
 
 def publish_request(client, revision=1, role="reviewer"):
+    if role == "reviewer":
+        # Publication now has the same human review/evaluation gate on every API route.
+        expert = auth(client, "expert")
+        draft = client.get("/api/v1/tasks/task_001/draft", headers=expert).json()
+        for gap in draft["clarifications"]:
+            if gap["status"] == "pending":
+                client.post(
+                    f"/api/v1/clarifications/{gap['id']}/respond",
+                    headers=expert,
+                    json={
+                        "expected_draft_revision": draft["revision"],
+                        "disposition": "deferred",
+                        "answer": "Explicitly deferred for review.",
+                    },
+                )
+        client.post(
+            "/api/v1/studio/tasks/task_001/evaluate",
+            headers=expert,
+            json={"expected_revision": revision},
+        )
     return client.post(
         "/api/v1/tasks/task_001/publish",
         headers=auth(client, role),

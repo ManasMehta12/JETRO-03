@@ -342,11 +342,32 @@ def test_extracted_draft_uses_full_v1_flow(live_client, sample_videos):
     )
     assert response.status_code == 200, response.text
     evidence_id = response.json()["evidence_id"]
+    # Publication requires resolved clarifications and a passing Studio evaluation.
+    expert = auth(client, "expert")
+    for gap in draft(client, task_id).json()["clarifications"]:
+        if gap["status"] == "pending":
+            response = client.post(
+                f"/api/v1/clarifications/{gap['id']}/respond",
+                headers=expert,
+                json={
+                    "expected_draft_revision": draft(client, task_id).json()["revision"],
+                    "disposition": "deferred",
+                    "answer": "Explicitly deferred for review.",
+                },
+            )
+            assert response.status_code == 200, response.text
+    revision = draft(client, task_id).json()["revision"]
+    response = client.post(
+        f"/api/v1/studio/tasks/{task_id}/evaluate",
+        headers=expert,
+        json={"expected_revision": revision},
+    )
+    assert response.status_code == 200 and response.json()["passed"], response.text
     response = client.post(
         f"/api/v1/tasks/{task_id}/publish",
         headers=auth(client, "reviewer"),
         json={
-            "expected_revision": 2,
+            "expected_revision": revision,
             "approval_note": "Reviewed recording and expert explanation.",
         },
     )

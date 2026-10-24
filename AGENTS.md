@@ -6,6 +6,7 @@ Takumi: expert knowledge capture → reviewed release → apprentice training. T
 - `markdowns/globals/` — product concept (`Takumi_Final_Concept_and_Three_Person_Technical_Plan.docx`) and the V1 backend master prompt (`takumi_v1_backend_prompt.md`).
 - `markdowns/hackathon/` — feature specs (expert studio, apprentice playground, technical viva) and `openapi/`.
 - `takumi-backend/` — FastAPI + SQLite knowledge engine (tasks, drafts, clarifications, evidence, immutable releases, training pack, grounded Q&A).
+- `src/`, `e2e/`, `index.html`, `package.json`, `vite.config.ts`, `playwright.config.ts`, `scripts/{dev,demo-preflight,create-test-video}.mjs`, `audits/` — apprentice learning playground, 3D bearing simulation and Studio admin UI (Vite + React + three.js, branch `aakrit`); see `PLAYGROUND.md` (root `README.md` on `himanish`). It calls `takumi-backend` `/api/v1/learning` and `/api/v1/studio` through the Vite `/api` proxy (`VITE_API_TARGET`, default `http://127.0.0.1:8001`); `npm run dev` starts the knowledge engine on 8001.
 
 ## Contracts
 - Canonical API contract: `markdowns/hackathon/openapi/API.doc.md`.
@@ -18,11 +19,11 @@ Takumi: expert knowledge capture → reviewed release → apprentice training. T
 ## Commands (run from `takumi-backend/`)
 ```sh
 uv sync
-uv run uvicorn app.main:app --reload --port 8000 --no-access-log   # DB auto-created and seeded (approved_baseline)
+uv run uvicorn app.main:app --reload --port 8001 --no-access-log   # DB auto-created and seeded (approved_baseline)
 uv run pytest -q
 uv run ruff check .
 uv run ruff format --check .
-uv run python scripts/demo_flow.py --base-url http://localhost:8000   # 16-step acceptance flow, needs running server
+uv run python scripts/demo_flow.py --base-url http://localhost:8001   # 16-step acceptance flow, needs running server
 uv run python scripts/run_worker.py   # separate process; requires live Gemini configuration
 uv run python scripts/video_flow.py --video demo.mp4   # upload, range, process, poll, draft
 uv run python scripts/seed_demo.py --state fresh|approved_baseline

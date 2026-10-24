@@ -1,0 +1,23 @@
+{
+  "answer_without_structured_update": {
+    "response_status": 200,
+    "content_fields_unchanged": true,
+    "before_revision": 1,
+    "after_revision": 2,
+    "evidence_added": 1
+  },
+  "legacy_reviewer_publication": {
+    "status": 201,
+    "admin_authorization": null,
+    "evaluation": null,
+    "pending_clarifications": 2
+  },
+  "full_demo_reset_learning_state": {
+    "reset_status": 200,
+    "release_before": "release_001",
+    "release_after": "release_001",
+    "course_completed_after": true,
+    "interview_unlocked_after": true,
+    "manual_completions_retained": true
+  }
+}

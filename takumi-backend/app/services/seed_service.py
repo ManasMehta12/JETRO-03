@@ -7,6 +7,8 @@ from app.ai.fixture_provider import FIXTURE_PATH, FixtureAIProvider
 from app.ai.schemas import MediaReference, TaskContext
 from app.core.security import CurrentUser
 from app.database import utcnow
+from app.learning.models import Enrollment, ManualCompletion
+from app.models.analysis import StudioAnalysisRun
 from app.models.entities import (
     Clarification,
     Draft,
@@ -18,6 +20,7 @@ from app.models.entities import (
     Task,
 )
 from app.models.schemas import ClarificationRespond, PublishRequest
+from app.models.studio import StudioAudit, StudioAuthorization, StudioEvaluation
 from app.services import clarification_service, publication_service
 
 FIXTURE_TASK_ID = "task_001"
@@ -114,9 +117,23 @@ def reset_demo(session, state: Literal["fresh", "approved_baseline"] = "fresh") 
     storage_keys = list(
         session.scalars(select(MediaAsset.storage_key).where(MediaAsset.task_id == FIXTURE_TASK_ID))
     )
+    # Learning is currently scoped to this demo course; purge every user and context.
+    session.execute(delete(ManualCompletion))
+    session.execute(delete(Enrollment))
     draft_ids = select(Draft.id).where(Draft.task_id == FIXTURE_TASK_ID)
     session.execute(delete(DraftRevision).where(DraftRevision.draft_id.in_(draft_ids)))
-    for model in (Clarification, Release, Draft, Evidence, ProcessingJob, MediaAsset):
+    for model in (
+        StudioAnalysisRun,
+        StudioAudit,
+        StudioAuthorization,
+        StudioEvaluation,
+        Clarification,
+        Release,
+        Draft,
+        Evidence,
+        ProcessingJob,
+        MediaAsset,
+    ):
         session.execute(delete(model).where(model.task_id == FIXTURE_TASK_ID))
     session.execute(delete(Task).where(Task.id == FIXTURE_TASK_ID))
     session.flush()

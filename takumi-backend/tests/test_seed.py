@@ -103,6 +103,9 @@ def test_schema_v1_additive_upgrade(client):
     init_db(client.app.state.engine)
     with client.app.state.engine.begin() as connection:
         assert (
-            connection.scalar(text("SELECT value FROM app_meta WHERE key='schema_version'")) == "3"
+            connection.scalar(text("SELECT value FROM app_meta WHERE key='schema_version'")) == "6"
         )
-    assert "media_assets" in inspect(client.app.state.engine).get_table_names()
+    tables = inspect(client.app.state.engine).get_table_names()
+    assert "media_assets" in tables
+    assert "learning_enrollments" in tables
+    assert "studio_analysis_runs" in tables
