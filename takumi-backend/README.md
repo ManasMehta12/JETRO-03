@@ -189,3 +189,13 @@ Reserved capabilities fail at startup when enabled. Disabled optional endpoints 
 
 ## Limitations
 See [KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). Media and Gemini extraction code ship here, but successful live Gemini extraction is unverified. No production identity, frontend or scenario/viva engine ships here. Q&A abstains on absent specifications.
+
+## Expert Studio demo workflow
+
+The current integrated demo is documented in the [root README](../README.md#one-button-diagnosis-demo) and [remediation runbook](../audits/2026-10-25-demo-remediation.md). `/studio` diagnoses source notes with three bounded AI roles, proposes source-extractive patches, evaluates them, and waits for human approval before applying/publishing. Missing keys show an unconfigured live state. Illustrative rehearsal requires explicit selection and `mode: rehearsal` in the request. A live failure never falls back to fixtures.
+
+In `DEMO_MODE=true`, both Studio and legacy publication endpoints require a fresh passing evidence evaluation and explicit human publication. No separate admin grant is required. Outside demo mode, the revision/content-specific authorization remains required. Demo identities are not production account management.
+
+AI analysis records and stages live in `studio_analysis_runs`; schema 6 is an additive migration. Provider calls run outside database transactions. Approving selected proposals checks the draft revision, creates attributed evidence, applies patches, evaluates and publishes atomically. Unanswered prompts require explicit deferral or a recorded response. Existing clarification responses can carry `knowledge_update` to apply a selected field.
+
+Full fixture reset now also clears learner enrollments, manual completions and diagnosis runs. It is destructive and must be explicitly requested; it is not part of preflight. Learner-only reset uses `/api/v1/learning/reset` and leaves published course content in place. A new publication starts a fresh learning context; historical learner reports across releases remain future work.

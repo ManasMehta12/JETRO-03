@@ -4,6 +4,8 @@ A release-grounded technical interview with an animated AI examiner, spoken or t
 
 The detailed requirements and roadmap live in [the implementation specification](markdowns/globals/03-technical-viva-implementation-spec.md). [The hackathon guide](markdowns/hackathon/README.md) explains team ownership and the Studio/Playground integration.
 
+This repository also contains the Takumi knowledge engine ([takumi-backend/README.md](takumi-backend/README.md), port 8001) and the apprentice learning playground with the 3D bearing simulation and Studio admin UI ([PLAYGROUND.md](PLAYGROUND.md)). The Viva API uses port 8000; the playground's `npm run dev` starts the knowledge engine on 8001, so all three run side by side.
+
 ## Run locally
 
 Use Python 3.12 and Node.js 22. The backend seeds illustrative demonstration knowledge and completed Playground attempts so Viva can be exercised independently of a full Studio capture or Playground renderer. Instructors must review these illustrative sources and task-specific rubrics before real learner assessment.

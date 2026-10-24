@@ -1,0 +1,25 @@
+{
+    "status":  "ok",
+    "database":  "ok",
+    "app_env":  "development",
+    "demo_mode":  true,
+    "ai_provider":  "fixture",
+    "schema_version":  5,
+    "features":  {
+                     "enable_demo_auth":  true,
+                     "enable_demo_seed":  true,
+                     "enable_demo_reset":  true,
+                     "enable_grounded_qa":  true,
+                     "enable_training_pack_export":  true,
+                     "enable_live_extraction":  false,
+                     "enable_live_gap_generation":  false,
+                     "enable_live_qa":  false,
+                     "enable_media_upload":  false,
+                     "enable_media_processing":  false,
+                     "enable_media_streaming":  false,
+                     "enable_processing_worker":  false,
+                     "enable_multilingual":  false,
+                     "enable_embeddings":  false,
+                     "enable_advanced_retrieval":  false
+                 }
+}

@@ -313,12 +313,12 @@ class AskOut(BaseModel):
 
 
 class DemoLoginRequest(RequestModel):
-    demo_user: Literal["expert", "reviewer", "apprentice"]
+    demo_user: Literal["expert", "reviewer", "apprentice", "admin"]
 
 
 class DemoUserOut(BaseModel):
     id: str
-    role: Literal["expert", "reviewer", "apprentice"]
+    role: Literal["expert", "reviewer", "apprentice", "admin"]
     display_name: str
 
 
