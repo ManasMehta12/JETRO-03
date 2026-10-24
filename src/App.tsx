@@ -31,7 +31,7 @@ import {
   scenarios,
   transition,
 } from './simulation';
-import type { ComponentId, Mode, ScenarioId } from './simulation';
+import type { AttemptState, ComponentId, Mode, ScenarioId } from './simulation';
 import { MissionBanner, MissionChecklist, WorkshopTask, WorkshopTray } from './components/WorkshopUI';
 import { PartArtwork } from './components/PartArtworks';
 import { getMissionProgress } from './mission';
@@ -46,16 +46,25 @@ const parts: { id: ComponentId; name: string; subtitle: string; code: string }[]
   { id: 'bearing', name: 'Ball bearing', subtitle: 'Rolling element assembly', code: '04' },
 ];
 
-function readInitial() {
+function readInitial(storageKey = STORAGE_KEY) {
   try {
-    return restoreAttempt(localStorage.getItem(STORAGE_KEY));
+    return restoreAttempt(localStorage.getItem(storageKey));
   } catch {
     return createAttempt();
   }
 }
 
-export default function App() {
-  const [attempt, setAttempt] = useState(readInitial);
+type PlaygroundProps = {
+  embedded?: boolean;
+  onAttemptComplete?: (attempt: AttemptState) => void;
+  onContinueToInterview?: () => void;
+  onMessage?: (message: string, isError?: boolean) => void;
+  onActivity?: (count: number) => void;
+  persistenceKey?: string;
+};
+
+export default function App({ embedded = false, onAttemptComplete, onContinueToInterview, onMessage, onActivity, persistenceKey = STORAGE_KEY }: PlaygroundProps = {}) {
+  const [attempt, setAttempt] = useState(() => readInitial(persistenceKey));
   const [selected, setSelected] = useState<ComponentId>('bearing');
   const [tab, setTab] = useState('Practice');
   const [exploded, setExploded] = useState(true);
@@ -92,6 +101,17 @@ export default function App() {
   const inspected = attempt.inspected.includes(selected);
   const lastEvent = attempt.log.at(-1);
 
+  useEffect(() => { onActivity?.(attempt.log.length); }, [attempt.log.length, onActivity]);
+
+  useEffect(() => {
+    if (terminal) onAttemptComplete?.(attempt);
+  }, [terminal, attempt, onAttemptComplete]);
+
+  useEffect(() => {
+    if (!embedded || !onMessage) return;
+    onMessage(error || (storageWarning ? 'Browser storage is unavailable. Progress cannot be restored after reload.' : '') || reward || (showFeedback && lastEvent ? lastEvent.detail : 'Playground progress is saved on this device until the result is submitted.'), Boolean(error || storageWarning));
+  }, [embedded, error, storageWarning, reward, showFeedback, lastEvent, onMessage]);
+
   useEffect(() => {
     if (!reward) return;
     const timer = window.setTimeout(() => setReward(''), 4000);
@@ -100,12 +120,12 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, serializeAttempt(attempt));
+      localStorage.setItem(persistenceKey, serializeAttempt(attempt));
       setStorageWarning(false);
     } catch {
       setStorageWarning(true);
     }
-  }, [attempt]);
+  }, [attempt, persistenceKey]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -200,9 +220,9 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${embedded ? 'playground-embedded' : ''}`}>
       {/* Top Header */}
-      <header className="app-header">
+      {!embedded && <header className="app-header">
         <div className="header-left">
           <a className="brand" href="#playground" aria-label="Takumi home">
             <span className="brand-symbol">
@@ -242,7 +262,7 @@ export default function App() {
           </div>
           <ChevronDown size={14} className="avatar-chevron" />
         </div>
-      </header>
+      </header>}
 
       {/* Main Content Area */}
       <main id="playground" className="main-content">
@@ -326,13 +346,13 @@ export default function App() {
                   <span>Interactive assembly</span>
                 </div>
                 <div className="scene-gizmo-top-right" aria-hidden="true">
-                  <svg viewBox="0 0 60 60" width="60" height="60">
-                    <line x1="30" y1="30" x2="30" y2="8" stroke="#2e7d32" strokeWidth="2.5" strokeLinecap="round" />
-                    <text x="30" y="5" textAnchor="middle" fill="#2e7d32" fontSize="9" fontWeight="bold">Y</text>
-                    <line x1="30" y1="30" x2="52" y2="30" stroke="#d32f2f" strokeWidth="2.5" strokeLinecap="round" />
-                    <text x="56" y="33" textAnchor="start" fill="#d32f2f" fontSize="9" fontWeight="bold">X</text>
-                    <line x1="30" y1="30" x2="14" y2="42" stroke="#1976d2" strokeWidth="2.5" strokeLinecap="round" />
-                    <text x="9" y="47" textAnchor="middle" fill="#1976d2" fontSize="9" fontWeight="bold">Z</text>
+                  <svg viewBox="0 0 64 64" width="60" height="60">
+                    <line x1="32" y1="32" x2="32" y2="12" stroke="#2e7d32" strokeWidth="2.5" strokeLinecap="round" />
+                    <text x="32" y="9" textAnchor="middle" fill="#2e7d32" fontSize="9" fontWeight="bold">Y</text>
+                    <line x1="32" y1="32" x2="52" y2="32" stroke="#d32f2f" strokeWidth="2.5" strokeLinecap="round" />
+                    <text x="58" y="35" textAnchor="middle" fill="#d32f2f" fontSize="9" fontWeight="bold">X</text>
+                    <line x1="32" y1="32" x2="16" y2="46" stroke="#1976d2" strokeWidth="2.5" strokeLinecap="round" />
+                    <text x="10" y="50" textAnchor="middle" fill="#1976d2" fontSize="9" fontWeight="bold">Z</text>
                   </svg>
                 </div>
 
@@ -617,6 +637,7 @@ export default function App() {
                         <button className="button secondary full" onClick={() => setTab('Knowledge check')}>
                           Review knowledge check <ArrowRight size={15} />
                         </button>
+                        {onContinueToInterview && <button className="button primary full" onClick={onContinueToInterview}>Continue to virtual interview <ArrowRight size={15}/></button>}
                         <small>Exercise result only. Supervised practical assessment is still required.</small>
                       </div>
                     ) : (
