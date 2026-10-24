@@ -104,17 +104,17 @@ PROCESSING_JOB_LEASE_SECONDS=360
 ```
 Replace the example IP with the Mac's LAN address. All three Ollama settings are required; missing values fail startup with `AI_PROVIDER=ollama requires OLLAMA_BASE_URL, OLLAMA_MODEL and WHISPER_BASE_URL`.
 
-On the Mac, install and download:
+On the Mac (quit any Ollama menu-bar app first so port 11434 is free):
 ```sh
 brew install ollama whisper.cpp
-ollama pull qwen2.5:7b
 curl -fL https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-q5_1.bin -o ggml-small.en-q5_1.bin
 ```
-Keep these commands running in separate Mac terminals:
+Keep these running in separate Mac terminals; `ollama pull` needs the server already up:
 ```sh
-OLLAMA_HOST=0.0.0.0:11434 ollama serve
-whisper-server --model ./ggml-small.en-q5_1.bin --host 0.0.0.0 --port 8080 --language en --threads 4
-caffeinate -dimsu
+OLLAMA_HOST=0.0.0.0:11434 ollama serve                  # terminal 1
+ollama pull qwen2.5:7b                                   # terminal 2, once serve is up
+whisper-server --model ./ggml-small.en-q5_1.bin --host 0.0.0.0 --port 8080 --language en --threads 4   # terminal 3
+caffeinate -dimsu                                        # terminal 4
 ```
 Then use the server, worker and `video_flow.py` commands above on the backend host.
 
