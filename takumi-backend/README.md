@@ -130,7 +130,7 @@ This option keeps the existing local whisper.cpp transcription stage and sends o
 ```dotenv
 AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=nvidia/nemotron-3.5-super-vl:free,xingchen-agi/xing4.0-29b-a4b:free,openrouter/free
+OPENROUTER_MODEL=xingchen-agi/xing4.0-29b-a4b:free,nvidia/nemotron-3.5-super-vl:free,openrouter/free
 WHISPER_BASE_URL=http://192.168.1.42:8080
 ENABLE_MEDIA_UPLOAD=true
 ENABLE_MEDIA_STREAMING=true
@@ -153,7 +153,11 @@ curl --noproxy '*' -g 'http://[::1]:12017/v1/audio/transcriptions' \
 `OPENROUTER_MODEL` is a comma-separated fallback list sent as OpenRouter's `models` array: when a model errors (downtime, rate limit), OpenRouter tries the next one. Requests set `provider.require_parameters=true`, so they route only to providers that honor the strict JSON schema. The default list uses free models that advertise structured outputs; keep it `:free`-only (plus `openrouter/free`) to avoid charges. Free models are rate-limited (about 50 requests/day without purchased credits). Output still validates against the application schema; invalid output fails as retryable `AI_RESPONSE_INVALID`. The job's `model_id` records the model that actually answered. OpenRouter receives the transcript, not the original video/audio; transcription stays on the trusted LAN. A synthetic live smoke passed as described below; extraction quality on real expert recordings remains unverified.
 
 ## Verification status
-Mac smoke (2026-10-25): a generated, narrated 13.1-second MP4 passed real upload, HTTP 206 playback, local WhisperServer.app transcription and live OpenRouter extraction into an unreviewed draft with four timestamp-linked knowledge units. The first Nemotron request did not complete after more than seven minutes; it was manually interrupted, the worker reclaimed the expired lease, and prioritizing the Xing4 free fallback completed the same job using its cached transcript. Model fallback is triggered by provider errors, not a slow successful HTTP response; a free-model list does not guarantee bounded completion time. This is a synthetic integration check, not validation of real demonstration quality. Current Takumi checks: 211 passed, one opt-in Gemini test skipped; ruff check and format passed.
+Mac smoke (2026-10-25): a generated, narrated 13.1-second MP4 passed real upload, HTTP 206 playback, local WhisperServer.app transcription and live OpenRouter extraction into an unreviewed draft with four timestamp-linked knowledge units. The first Nemotron request did not complete after more than seven minutes; it was manually interrupted, the worker reclaimed the expired lease, and prioritizing the Xing4 free fallback completed the same job using its cached transcript.
+
+That run exposed the difference between HTTPX per-chunk read timeouts and a total deadline. OpenRouter chat calls now also have a wall-clock deadline set by `PROCESSING_PROVIDER_TIMEOUT_SECONDS`, covering connection through the complete response body. Expiry cancels the request, closes the client and returns retryable `PROCESSING_TIMEOUT`; the worker applies its existing retry budget. OpenRouter model fallback still depends on upstream errors; a local timeout does not rotate the model list. Total job time can include transcription, extraction and retries.
+
+This is a synthetic integration check, not validation of real demonstration quality. A follow-up live smoke with the total deadline enabled and Xing4 first completed in 12 seconds and produced three timestamp-linked action units. Current Takumi checks: 213 passed, one opt-in Gemini test skipped; ruff check and format passed.
 
 C4 gates: 113 tests passed; real-server upload and range smoke passed.
 C5 gates: 192 tests passed, 1 opt-in live test skipped; ruff check/format clean.

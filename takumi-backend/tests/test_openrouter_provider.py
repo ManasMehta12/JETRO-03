@@ -1,5 +1,8 @@
 import json
+import threading
+import time
 from contextlib import ExitStack
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import httpx
 import pytest
@@ -44,7 +47,7 @@ def setup_provider(settings_factory, tmp_path):
         yield provider
 
 
-def test_openrouter_structured_extraction(setup_provider, tmp_path):
+def test_openrouter_structured_extraction(setup_provider, tmp_path, monkeypatch):
     provider = setup_provider
     transcript_name = "transcripts/media_test.json"
     transcript_path = tmp_path / transcript_name
@@ -98,12 +101,18 @@ def test_openrouter_structured_extraction(setup_provider, tmp_path):
             },
         )
 
-    provider._http.close()
-    provider._http = httpx.Client(
-        base_url="https://openrouter.ai/api/v1",
-        headers={"Authorization": "Bearer test-key"},
-        transport=httpx.MockTransport(chat),
-    )
+    clients = []
+
+    def chat_client():
+        client = httpx.AsyncClient(
+            base_url="https://openrouter.ai/api/v1",
+            headers={"Authorization": "Bearer test-key"},
+            transport=httpx.MockTransport(chat),
+        )
+        clients.append(client)
+        return client
+
+    monkeypatch.setattr(provider, "_chat_client", chat_client)
     extracted = provider.extract_video(
         ProviderFile(
             name=transcript_name,
@@ -120,6 +129,7 @@ def test_openrouter_structured_extraction(setup_provider, tmp_path):
     assert extracted.usage == {"prompt_tokens": 100, "completion_tokens": 30, "total_tokens": 130}
     assert extracted.model_id == "backup/model:free"
     assert extracted.prompt_version == PROMPT_VERSION
+    assert clients[0].is_closed
 
 
 def test_openrouter_auth_error_is_not_retried(setup_provider):
@@ -153,3 +163,74 @@ def test_openrouter_preflight_skips_unavailable_primary(setup_provider):
     with pytest.raises(ProviderError) as error:
         setup_provider.check_model()
     assert error.value.code == "AI_PROVIDER_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("delay", ["headers", "body"])
+def test_chat_deadline_cancels_slow_response(setup_provider, tmp_path, delay, monkeypatch):
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            body = json.dumps(
+                {"choices": [{"message": {"content": '{"task_summary":"Test","steps":[]}'}}]}
+            ).encode()
+            try:
+                if delay == "headers":
+                    time.sleep(0.6)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                if delay == "body":
+                    for _ in range(30):
+                        self.wfile.write(b" ")
+                        self.wfile.flush()
+                        time.sleep(0.02)
+                self.wfile.write(body)
+                self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+
+        def log_message(self, *args):
+            pass
+
+    provider = setup_provider
+    transcript = tmp_path / "transcript.json"
+    transcript.write_text(json.dumps({"language": "en", "segments": []}))
+    with ThreadingHTTPServer(("127.0.0.1", 0), Handler) as server:
+        thread = threading.Thread(target=lambda: server.serve_forever(poll_interval=0.01))
+        thread.start()
+        provider._http.close()
+        provider._http = httpx.Client(
+            base_url=f"http://127.0.0.1:{server.server_port}", timeout=5, trust_env=False
+        )
+        provider._timeout = 0.15
+        clients = []
+        create_client = provider._chat_client
+
+        def chat_client():
+            client = create_client()
+            clients.append(client)
+            return client
+
+        monkeypatch.setattr(provider, "_chat_client", chat_client)
+        try:
+            started = time.monotonic()
+            with pytest.raises(ProviderError) as error:
+                provider.extract_video(
+                    ProviderFile(
+                        name=transcript.name,
+                        uri=transcript.name,
+                        mime_type="application/json",
+                        state="ACTIVE",
+                    ),
+                    TaskContext(task_id="task", title="Test", equipment="Bench", language="en"),
+                    3000,
+                    True,
+                )
+            assert time.monotonic() - started < 1
+            assert error.value.code == "PROCESSING_TIMEOUT"
+            assert error.value.retryable
+            assert clients[0].is_closed
+        finally:
+            provider._http.close()
+            server.shutdown()
+            thread.join(timeout=1)
