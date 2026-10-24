@@ -1,5 +1,7 @@
 # Checkpoint reports
 
+V2 media and Gemini extraction reports: [V2_CHECKPOINTS.md](V2_CHECKPOINTS.md). Reports below record historical V1 checkpoints.
+
 ## CP0 — Bootstrap, configuration and fixture seed
 
 **Checkpoint completed:** CP0; commit `137154a` (`feat(backend): bootstrap FastAPI app, config, auth, fixture seed (CP0)`).

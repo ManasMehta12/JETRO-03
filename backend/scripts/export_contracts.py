@@ -12,7 +12,9 @@ from app.config import Settings  # noqa: E402
 from app.main import create_app  # noqa: E402
 from app.models.schemas import (  # noqa: E402
     ClarificationOut,
+    JobOut,
     KnowledgeUnit,
+    MediaOut,
     ReleaseOut,
     TrainingPack,
 )
@@ -64,12 +66,14 @@ def main():
             ("clarification", ClarificationOut),
             ("release", ReleaseOut),
             ("training-pack", TrainingPack),
+            ("media", MediaOut),
+            ("processing-job", JobOut),
         ):
             save(contracts / f"{name}.json", model.model_json_schema())
         with TestClient(app) as client:
             run_flow(client, record)
     assert count == 16
-    print("Exported OpenAPI, four schemas and 16 API examples.")
+    print("Exported OpenAPI, six schemas and 16 API examples.")
 
 
 if __name__ == "__main__":

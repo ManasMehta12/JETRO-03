@@ -1,0 +1,97 @@
+{
+  "properties": {
+    "media_id": {
+      "title": "Media Id",
+      "type": "string"
+    },
+    "task_id": {
+      "title": "Task Id",
+      "type": "string"
+    },
+    "filename": {
+      "title": "Filename",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "duration_ms": {
+      "title": "Duration Ms",
+      "type": "integer"
+    },
+    "mime_type": {
+      "title": "Mime Type",
+      "type": "string"
+    },
+    "size_bytes": {
+      "title": "Size Bytes",
+      "type": "integer"
+    },
+    "sha256": {
+      "title": "Sha256",
+      "type": "string"
+    },
+    "video_codec": {
+      "title": "Video Codec",
+      "type": "string"
+    },
+    "audio_codec": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Audio Codec"
+    },
+    "has_audio": {
+      "title": "Has Audio",
+      "type": "boolean"
+    },
+    "width": {
+      "title": "Width",
+      "type": "integer"
+    },
+    "height": {
+      "title": "Height",
+      "type": "integer"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "playback_url": {
+      "title": "Playback Url",
+      "type": "string"
+    },
+    "playback_expires_at": {
+      "format": "date-time",
+      "title": "Playback Expires At",
+      "type": "string"
+    }
+  },
+  "required": [
+    "media_id",
+    "task_id",
+    "filename",
+    "status",
+    "duration_ms",
+    "mime_type",
+    "size_bytes",
+    "sha256",
+    "video_codec",
+    "audio_codec",
+    "has_audio",
+    "width",
+    "height",
+    "created_at",
+    "playback_url",
+    "playback_expires_at"
+  ],
+  "title": "MediaOut",
+  "type": "object"
+}

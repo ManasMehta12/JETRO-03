@@ -14,11 +14,11 @@ Keep `.env` private. Defaults need no API key. Set `DEMO_SIGNING_SECRET` for tok
 
 ## Start
 ```sh
-uv run uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000 --no-access-log
 ```
 
 ## Database
-Startup creates SQLite tables, checks schema version and installs the immutable-release UPDATE trigger. A new database automatically seeds `approved_baseline`, with `release_001` active. Existing `task_001` is never overwritten. Schema mismatch fails safely; back up the file before replacing it. Services flush; routers, lifespan and scripts own transactions.
+Startup creates SQLite tables, upgrades schema v1/v2 additively to v3 and installs the immutable-release UPDATE trigger. A new database automatically seeds `approved_baseline`, with `release_001` active. Existing `task_001` is never overwritten. Unsupported schema versions fail startup; back up before changing the database. Services flush; routers, lifespan, scripts and worker own transactions.
 
 ## Demo
 ```sh
@@ -49,6 +49,54 @@ uv run ruff format --check .
 ```
 Tests isolate databases. The integration test runs the full flow twice.
 
+## Media (C4)
+Install `ffprobe` on PATH (`ffmpeg` is also needed for generated-video tests). Set `ENABLE_MEDIA_UPLOAD=true` and `ENABLE_MEDIA_STREAMING=true`.
+Experts/reviewers upload multipart field `file` to `POST /api/v1/tasks/{task_id}/media`.
+Only MP4 containers with h264/av1 video are accepted; defaults limit uploads to 100 MiB and 240 seconds.
+Files stay under `MEDIA_STORAGE_DIR=./data/media`, not a public static directory.
+`GET /api/v1/media/{media_id}` returns metadata and a reusable 10-minute signed playback URL.
+Streaming supports byte ranges. Apprentices see media only when a release snapshot cites it.
+Run the server with `--no-access-log`: default access logs would record playback URL tokens.
+
+## Live extraction (C5)
+Set these values in the private `.env` used by both server and worker:
+```dotenv
+AI_PROVIDER=gemini
+GEMINI_API_KEY=<your-key>
+GEMINI_MODEL=<video-capable-model-available-to-your-key>
+ENABLE_MEDIA_UPLOAD=true
+ENABLE_MEDIA_STREAMING=true
+ENABLE_MEDIA_PROCESSING=true
+ENABLE_LIVE_EXTRACTION=true
+ENABLE_PROCESSING_WORKER=true
+```
+No model is selected by default. Model availability and successful live extraction remain unverified.
+Start server and worker in separate terminals from `backend/`, sharing `DATABASE_URL`, `MEDIA_STORAGE_DIR` and configuration:
+```sh
+uv run uvicorn app.main:app --port 8000 --no-access-log
+uv run python scripts/run_worker.py
+uv run python scripts/video_flow.py --video demo.mp4
+```
+The script creates a new task, uploads, checks a range, submits a job, polls and prints extracted units with evidence intervals.
+`POST /process` returns 202 immediately; the worker builds an unreviewed draft, never a release.
+Continue through the existing clarify → publish → training-pack → ask flow.
+Existing drafts reject new processing with 409 `DRAFT_ALREADY_EXISTS`; use a new task.
+`--mode demo` cannot analyze uploads and returns 422 `FIXTURE_NOT_AVAILABLE`; use `scripts/demo_flow.py` for the seeded fixture.
+Without live configuration, processing returns 503 `AI_PROVIDER_UNAVAILABLE`; uploaded media remains available.
+
+Code path: `app/api/media.py` → `app/services/media_service.py` → `app/services/processing_service.py` → `app/services/processing_worker.py` → `app/ai/gemini_provider.py` / `app/ai/prompts/video_extraction_v1.py` → `app/services/extraction_service.py`.
+
+## Verification status
+C4 gates: 113 tests passed; real-server upload and range smoke passed.
+C5 gates: 192 tests passed, 1 opt-in live test skipped; ruff check/format clean.
+Processing, retries, recovery and V1 integration use mocked provider tests.
+**Live Gemini extraction is unverified: no API key is available.** An invalid-key preflight failed safely; it is not proof of provider availability.
+Opt in with a real key, model and recording:
+```sh
+TAKUMI_LIVE_GEMINI=1 GEMINI_API_KEY=… GEMINI_MODEL=… TAKUMI_LIVE_VIDEO=/path/to.mp4 uv run pytest tests/test_gemini_live.py
+```
+See [V2_CHECKPOINTS.md](docs/V2_CHECKPOINTS.md) for observed checkpoint evidence and final verification status.
+
 ## Feature flags
 | Setting | Default | Behavior |
 |---|---|---|
@@ -56,12 +104,12 @@ Tests isolate databases. The integration test runs the full flow twice.
 | DEMO_SEED_STATE | approved_baseline | Initial release_001 |
 | ENABLE_GROUNDED_QA | true | Answers only from release snapshots |
 | ENABLE_TRAINING_PACK_EXPORT | true | Immutable release export |
-| AI_PROVIDER | fixture | Deterministic local provider; gemini rejected |
-| ENABLE_MEDIA_UPLOAD, ENABLE_MEDIA_STREAMING | false | Reserved Checkpoint 4 |
-| ENABLE_LIVE_EXTRACTION, ENABLE_MEDIA_PROCESSING, ENABLE_PROCESSING_WORKER, LOG_MODEL_INPUTS | false | Reserved Checkpoint 5 |
-| ENABLE_LIVE_GAP_GENERATION, ENABLE_LIVE_QA, ENABLE_MULTILINGUAL, ENABLE_EMBEDDINGS, ENABLE_ADVANCED_RETRIEVAL | false | Reserved Checkpoint 6 |
+| AI_PROVIDER | fixture | fixture or gemini; Q&A/gaps remain deterministic in both |
+| ENABLE_MEDIA_UPLOAD, ENABLE_MEDIA_STREAMING | false | Validated uploads and private ranged playback (C4) |
+| ENABLE_LIVE_EXTRACTION, ENABLE_MEDIA_PROCESSING, ENABLE_PROCESSING_WORKER | false | Gemini extraction, durable jobs and separate worker (C5) |
+| ENABLE_LIVE_GAP_GENERATION, ENABLE_LIVE_QA, ENABLE_MULTILINGUAL, ENABLE_EMBEDDINGS, ENABLE_ADVANCED_RETRIEVAL, LOG_MODEL_INPUTS | false | Reserved Checkpoint 6 |
 
 Reserved capabilities fail at startup when enabled. Disabled optional endpoints return HTTP 501 `FEATURE_DISABLED`. Core lifecycle and authentication have no off switch. `.env.example` lists every setting.
 
 ## Limitations
-See [KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). No Gemini, media pipeline, production identity, frontend or scenario/viva engine ships here. Q&A abstains on absent specifications.
+See [KNOWN_LIMITATIONS.md](docs/KNOWN_LIMITATIONS.md). Media and Gemini extraction code ship here, but successful live Gemini extraction is unverified. No production identity, frontend or scenario/viva engine ships here. Q&A abstains on absent specifications.
