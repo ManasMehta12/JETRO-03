@@ -34,10 +34,16 @@ def build_engine(settings):
 
         @event.listens_for(engine, "connect")
         def sqlite_pragmas(connection, _):
+            # Let SQLAlchemy emit BEGIN itself so SAVEPOINTs work (pysqlite legacy mode does not).
+            connection.isolation_level = None
             cursor = connection.cursor()
             for pragma in ("foreign_keys=ON", "busy_timeout=5000", "journal_mode=WAL"):
                 cursor.execute(f"PRAGMA {pragma}")
             cursor.close()
+
+        @event.listens_for(engine, "begin")
+        def sqlite_begin(connection):
+            connection.exec_driver_sql("BEGIN")
 
     return engine
 
