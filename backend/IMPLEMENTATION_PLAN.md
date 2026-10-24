@@ -6,7 +6,7 @@ Python 3.11+, FastAPI, Pydantic settings, SQLAlchemy 2.x, SQLite, uv, pytest, Ru
 - Publish = approval; drafts remain draft and release status is derived from the active pointer.
 - Gemini is interface only. Reserved live/media flags fail at startup.
 - FEATURE_DISABLED returns 501; HMAC demo tokens use a process key unless a secret is supplied.
-- Baseline auto-seed arrives in CP3; CP0 seeds fresh fixture data without overwriting edits.
+- Fresh databases auto-seed approved_baseline; existing fixture tasks and edits are never overwritten.
 - Services never call commit(). They mutate, then session.flush().
 - Routers, lifespan and scripts own commit()/rollback().
 - Immutable release snapshots ground Q&A; fixture content is explicitly illustrative.

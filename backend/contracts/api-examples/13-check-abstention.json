@@ -1,0 +1,21 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/tasks/task_001/ask",
+    "body": {
+      "question": "What is the torque specification for the housing bolts?"
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "status": "insufficient_evidence",
+      "release_id": "release_2b742612c999",
+      "claims": [],
+      "missing_information": [
+        "The approved knowledge pack does not contain this information."
+      ],
+      "review_required": false
+    }
+  }
+}

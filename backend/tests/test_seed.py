@@ -79,20 +79,10 @@ def test_unknown_fixture():
     assert exc.value.code == "FIXTURE_NOT_AVAILABLE"
 
 
-def test_baseline_reserved(client):
+def test_existing_fixture_is_not_replaced(client):
     with client.app.state.sessionmaker() as session:
         # Existing fixture remains untouched even when a different state is requested.
         assert seed_demo(session, "approved_baseline") is False
-    with client.app.state.sessionmaker() as session:
-        from sqlalchemy import delete
-
-        from app.models.entities import Release
-
-        for model in (Clarification, DraftRevision, Release, Draft, Evidence, Task):
-            session.execute(delete(model))
-        with pytest.raises(NotImplementedError):
-            seed_demo(session, "approved_baseline")
-        session.rollback()
 
 
 def test_schema_version_guard(client):

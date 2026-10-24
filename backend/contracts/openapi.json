@@ -1,0 +1,2400 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Takumi Knowledge Engine",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health",
+        "operationId": "health_api_v1_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/demo-login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Demo Login",
+        "operationId": "demo_login_api_v1_auth_demo_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoLoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoLoginOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "List Tasks",
+        "operationId": "list_tasks_api_v1_tasks_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskListOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Create Task",
+        "operationId": "create_task_api_v1_tasks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tasks/{task_id}": {
+      "get": {
+        "tags": [
+          "tasks"
+        ],
+        "summary": "Get Task",
+        "operationId": "get_task_api_v1_tasks__task_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TaskOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/draft": {
+      "get": {
+        "tags": [
+          "drafts"
+        ],
+        "summary": "Get Draft",
+        "operationId": "get_draft_api_v1_tasks__task_id__draft_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "drafts"
+        ],
+        "summary": "Patch Draft",
+        "operationId": "patch_draft_api_v1_tasks__task_id__draft_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftPatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftPatchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clarifications/{clarification_id}/respond": {
+      "post": {
+        "tags": [
+          "clarifications"
+        ],
+        "summary": "Respond",
+        "operationId": "respond_api_v1_clarifications__clarification_id__respond_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clarification_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Clarification Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClarificationRespond"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClarificationRespondOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/publish": {
+      "post": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Publish",
+        "operationId": "publish_api_v1_tasks__task_id__publish_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/release": {
+      "get": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Active Release",
+        "operationId": "active_release_api_v1_tasks__task_id__release_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/releases/{release_id}": {
+      "get": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Get Release",
+        "operationId": "get_release_api_v1_releases__release_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "release_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Release Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/releases/{release_id}/training-pack": {
+      "get": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Training Pack",
+        "operationId": "training_pack_api_v1_releases__release_id__training_pack_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "release_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Release Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingPack"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/evidence/{evidence_id}": {
+      "get": {
+        "tags": [
+          "evidence"
+        ],
+        "summary": "Get Evidence",
+        "operationId": "get_evidence_api_v1_evidence__evidence_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "evidence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Evidence Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvidenceItemOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/ask": {
+      "post": {
+        "tags": [
+          "qa"
+        ],
+        "summary": "Ask",
+        "operationId": "ask_api_v1_tasks__task_id__ask_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/media": {
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Upload Media",
+        "operationId": "upload_media_api_v1_tasks__task_id__media_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{task_id}/process": {
+      "post": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Process Media",
+        "operationId": "process_media_api_v1_tasks__task_id__process_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Get Job",
+        "operationId": "get_job_api_v1_jobs__job_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Job Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/media/{media_id}/stream": {
+      "get": {
+        "tags": [
+          "media"
+        ],
+        "summary": "Stream Media",
+        "operationId": "stream_media_api_v1_media__media_id__stream_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "media_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Media Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/demo/reset": {
+      "post": {
+        "tags": [
+          "demo"
+        ],
+        "summary": "Reset",
+        "operationId": "reset_api_v1_demo_reset_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DemoResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DemoResetOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AskOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "needs_context",
+              "insufficient_evidence"
+            ],
+            "title": "Status"
+          },
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/Claim"
+            },
+            "type": "array",
+            "title": "Claims"
+          },
+          "missing_information": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Information"
+          },
+          "review_required": {
+            "type": "boolean",
+            "title": "Review Required"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "release_id",
+          "claims",
+          "missing_information",
+          "review_required"
+        ],
+        "title": "AskOut"
+      },
+      "AskRequest": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Question"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "en"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "AskRequest"
+      },
+      "Claim": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "knowledge_unit_id": {
+            "type": "string",
+            "title": "Knowledge Unit Id"
+          },
+          "field": {
+            "type": "string",
+            "enum": [
+              "action",
+              "cue",
+              "interpretation",
+              "decision",
+              "exception"
+            ],
+            "title": "Field"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "knowledge_unit_id",
+          "field",
+          "evidence_ids"
+        ],
+        "title": "Claim"
+      },
+      "ClarificationOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "knowledge_unit_id": {
+            "type": "string",
+            "title": "Knowledge Unit Id"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "answered",
+              "premise_rejected",
+              "unobservable",
+              "deferred"
+            ],
+            "title": "Status"
+          },
+          "gap_type": {
+            "type": "string",
+            "enum": [
+              "missing_reasoning",
+              "changed_condition",
+              "beginner_mistake"
+            ],
+            "title": "Gap Type"
+          },
+          "priority": {
+            "type": "integer",
+            "title": "Priority"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "answered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answered At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "knowledge_unit_id",
+          "question",
+          "status",
+          "gap_type",
+          "priority"
+        ],
+        "title": "ClarificationOut"
+      },
+      "ClarificationRespond": {
+        "properties": {
+          "expected_draft_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Draft Revision"
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "answered",
+              "premise_rejected",
+              "unobservable",
+              "deferred"
+            ],
+            "title": "Disposition"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "knowledge_update": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KnowledgeUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_draft_revision",
+          "disposition"
+        ],
+        "title": "ClarificationRespond"
+      },
+      "ClarificationRespondOut": {
+        "properties": {
+          "clarification_id": {
+            "type": "string",
+            "title": "Clarification Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "answered",
+              "premise_rejected",
+              "unobservable",
+              "deferred"
+            ],
+            "title": "Status"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "knowledge_unit_id": {
+            "type": "string",
+            "title": "Knowledge Unit Id"
+          },
+          "draft_revision": {
+            "type": "integer",
+            "title": "Draft Revision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "clarification_id",
+          "status",
+          "evidence_id",
+          "knowledge_unit_id",
+          "draft_revision"
+        ],
+        "title": "ClarificationRespondOut"
+      },
+      "DemoLoginOut": {
+        "properties": {
+          "access_token": "<token>",
+          "token_type": {
+            "type": "string",
+            "const": "bearer",
+            "title": "Token Type"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "user": {
+            "$ref": "#/components/schemas/DemoUserOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_at",
+          "user"
+        ],
+        "title": "DemoLoginOut"
+      },
+      "DemoLoginRequest": {
+        "properties": {
+          "demo_user": {
+            "type": "string",
+            "enum": [
+              "expert",
+              "reviewer",
+              "apprentice"
+            ],
+            "title": "Demo User"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "demo_user"
+        ],
+        "title": "DemoLoginRequest"
+      },
+      "DemoResetOut": {
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "title": "Success"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "attempts",
+              "full_demo"
+            ],
+            "title": "Scope"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "approved_baseline"
+            ],
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "success",
+          "scope",
+          "state"
+        ],
+        "title": "DemoResetOut"
+      },
+      "DemoResetRequest": {
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "attempts",
+              "full_demo"
+            ],
+            "title": "Scope"
+          },
+          "confirm": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirm"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "fresh",
+              "approved_baseline"
+            ],
+            "title": "State",
+            "default": "fresh"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "scope"
+        ],
+        "title": "DemoResetRequest"
+      },
+      "DemoUserOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "expert",
+              "reviewer",
+              "apprentice"
+            ],
+            "title": "Role"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "display_name"
+        ],
+        "title": "DemoUserOut"
+      },
+      "DraftChange": {
+        "properties": {
+          "knowledge_unit_id": {
+            "type": "string",
+            "title": "Knowledge Unit Id"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/KnowledgeFieldsPatch"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "knowledge_unit_id",
+          "fields"
+        ],
+        "title": "DraftChange"
+      },
+      "DraftOut": {
+        "properties": {
+          "draft_id": {
+            "type": "string",
+            "title": "Draft Id"
+          },
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "knowledge_units": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeUnit"
+            },
+            "type": "array",
+            "title": "Knowledge Units"
+          },
+          "clarifications": {
+            "items": {
+              "$ref": "#/components/schemas/ClarificationOut"
+            },
+            "type": "array",
+            "title": "Clarifications"
+          }
+        },
+        "type": "object",
+        "required": [
+          "draft_id",
+          "task_id",
+          "revision",
+          "status",
+          "knowledge_units",
+          "clarifications"
+        ],
+        "title": "DraftOut"
+      },
+      "DraftPatch": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "changes": {
+            "items": {
+              "$ref": "#/components/schemas/DraftChange"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "changes"
+        ],
+        "title": "DraftPatch"
+      },
+      "DraftPatchOut": {
+        "properties": {
+          "draft_id": {
+            "type": "string",
+            "title": "Draft Id"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "updated_knowledge_unit_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Updated Knowledge Unit Ids"
+          },
+          "correction_evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Correction Evidence Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "draft_id",
+          "revision",
+          "status",
+          "updated_knowledge_unit_ids",
+          "correction_evidence_ids"
+        ],
+        "title": "DraftPatchOut"
+      },
+      "EvidenceItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "video_segment",
+              "expert_response",
+              "reviewer_correction"
+            ],
+            "title": "Type"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "author_id": {
+            "type": "string",
+            "title": "Author Id"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "media_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Id"
+          },
+          "start_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Ms"
+          },
+          "end_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Ms"
+          },
+          "source_label": {
+            "type": "string",
+            "enum": [
+              "real",
+              "illustrative"
+            ],
+            "title": "Source Label"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "task_id",
+          "type",
+          "author",
+          "author_id",
+          "source_label",
+          "created_at"
+        ],
+        "title": "EvidenceItemOut"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "database": {
+            "type": "string",
+            "title": "Database"
+          },
+          "app_env": {
+            "type": "string",
+            "title": "App Env"
+          },
+          "demo_mode": {
+            "type": "boolean",
+            "title": "Demo Mode"
+          },
+          "ai_provider": {
+            "type": "string",
+            "title": "Ai Provider"
+          },
+          "schema_version": {
+            "type": "integer",
+            "title": "Schema Version"
+          },
+          "features": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Features"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "database",
+          "app_env",
+          "demo_mode",
+          "ai_provider",
+          "schema_version",
+          "features"
+        ],
+        "title": "HealthOut"
+      },
+      "KnowledgeFieldsPatch": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "interpretation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interpretation"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "exception": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "KnowledgeFieldsPatch"
+      },
+      "KnowledgeUnit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "interpretation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interpretation"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "exception": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "field_evidence": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "enum": [
+                "action",
+                "cue",
+                "interpretation",
+                "decision",
+                "exception"
+              ]
+            },
+            "type": "object",
+            "title": "Field Evidence"
+          },
+          "review_status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "reviewed",
+              "approved"
+            ],
+            "title": "Review Status",
+            "default": "draft"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "action"
+        ],
+        "title": "KnowledgeUnit"
+      },
+      "KnowledgeUpdate": {
+        "properties": {
+          "knowledge_unit_id": {
+            "type": "string",
+            "title": "Knowledge Unit Id"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/KnowledgeUpdateFields"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "knowledge_unit_id",
+          "fields"
+        ],
+        "title": "KnowledgeUpdate"
+      },
+      "KnowledgeUpdateFields": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "interpretation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interpretation"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "exception": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "KnowledgeUpdateFields"
+      },
+      "PublishOut": {
+        "properties": {
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "superseded"
+            ],
+            "title": "Status"
+          },
+          "approved_by": {
+            "type": "string",
+            "title": "Approved By"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release_id",
+          "task_id",
+          "version",
+          "status",
+          "approved_by",
+          "content_hash"
+        ],
+        "title": "PublishOut"
+      },
+      "PublishRequest": {
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Revision"
+          },
+          "approval_note": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Approval Note"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "expected_revision",
+          "approval_note"
+        ],
+        "title": "PublishRequest"
+      },
+      "ReleaseOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "superseded"
+            ],
+            "title": "Status"
+          },
+          "approved_by": {
+            "type": "string",
+            "title": "Approved By"
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Approved At"
+          },
+          "approval_note": {
+            "type": "string",
+            "title": "Approval Note"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "knowledge_units": {
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeUnit"
+            },
+            "type": "array",
+            "title": "Knowledge Units"
+          },
+          "evidence_items": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItemOut"
+            },
+            "type": "array",
+            "title": "Evidence Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "task_id",
+          "version",
+          "status",
+          "approved_by",
+          "approved_at",
+          "approval_note",
+          "content_hash",
+          "knowledge_units",
+          "evidence_items"
+        ],
+        "title": "ReleaseOut"
+      },
+      "TaskCreate": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title"
+          },
+          "equipment": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Equipment"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "language": {
+            "type": "string",
+            "pattern": "^[a-z]{2}$",
+            "title": "Language",
+            "default": "en"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "title",
+          "equipment"
+        ],
+        "title": "TaskCreate"
+      },
+      "TaskListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TaskOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "TaskListOut"
+      },
+      "TaskOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "active_release_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Release Id"
+          },
+          "source_label": {
+            "type": "string",
+            "enum": [
+              "real",
+              "illustrative"
+            ],
+            "title": "Source Label"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "equipment",
+          "description",
+          "language",
+          "status",
+          "active_release_id",
+          "source_label",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "TaskOut"
+      },
+      "TrainingPack": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "const": "1.0",
+            "title": "Schema Version"
+          },
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "release_id": {
+            "type": "string",
+            "title": "Release Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "equipment": {
+            "type": "string",
+            "title": "Equipment"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "source_label": {
+            "type": "string",
+            "enum": [
+              "real",
+              "illustrative"
+            ],
+            "title": "Source Label"
+          },
+          "approved_by": {
+            "type": "string",
+            "title": "Approved By"
+          },
+          "approved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Approved At"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "knowledge_units": {
+            "items": {
+              "$ref": "#/components/schemas/TrainingPackKU"
+            },
+            "type": "array",
+            "title": "Knowledge Units"
+          },
+          "evidence_items": {
+            "items": {
+              "$ref": "#/components/schemas/TrainingPackEvidence"
+            },
+            "type": "array",
+            "title": "Evidence Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schema_version",
+          "task_id",
+          "release_id",
+          "version",
+          "title",
+          "equipment",
+          "language",
+          "source_label",
+          "approved_by",
+          "approved_at",
+          "content_hash",
+          "knowledge_units",
+          "evidence_items"
+        ],
+        "title": "TrainingPack"
+      },
+      "TrainingPackEvidence": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "video_segment",
+              "expert_response",
+              "reviewer_correction"
+            ],
+            "title": "Type"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content"
+          },
+          "source_label": {
+            "type": "string",
+            "enum": [
+              "real",
+              "illustrative"
+            ],
+            "title": "Source Label"
+          },
+          "media_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Id"
+          },
+          "start_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Ms"
+          },
+          "end_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Ms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "author",
+          "content",
+          "source_label",
+          "media_id",
+          "start_ms",
+          "end_ms"
+        ],
+        "title": "TrainingPackEvidence"
+      },
+      "TrainingPackKU": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "cue": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cue"
+          },
+          "interpretation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interpretation"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "exception": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exception"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          },
+          "field_evidence": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "propertyNames": {
+              "enum": [
+                "action",
+                "cue",
+                "interpretation",
+                "decision",
+                "exception"
+              ]
+            },
+            "type": "object",
+            "title": "Field Evidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "action",
+          "evidence_ids",
+          "field_evidence"
+        ],
+        "title": "TrainingPackKU"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

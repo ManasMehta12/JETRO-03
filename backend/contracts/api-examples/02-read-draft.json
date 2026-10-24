@@ -1,0 +1,113 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/tasks/task_001/draft",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "draft_id": "draft_001",
+      "task_id": "task_001",
+      "revision": 1,
+      "status": "draft",
+      "knowledge_units": [
+        {
+          "id": "ku_001",
+          "action": "Inspect the bearing housing",
+          "cue": null,
+          "interpretation": null,
+          "decision": null,
+          "exception": null,
+          "evidence_ids": [
+            "ev_001"
+          ],
+          "field_evidence": {
+            "action": [
+              "ev_001"
+            ]
+          },
+          "review_status": "draft"
+        },
+        {
+          "id": "ku_002",
+          "action": "Rotate the shaft slowly by hand through one full turn",
+          "cue": "Illustrative: a visible wobble at the shaft end during rotation",
+          "interpretation": "Illustrative: possible misalignment between the shaft and the bearing",
+          "decision": "Illustrative: stop and check bearing seating before continuing the inspection",
+          "exception": null,
+          "evidence_ids": [
+            "ev_003"
+          ],
+          "field_evidence": {
+            "action": [
+              "ev_003"
+            ],
+            "cue": [
+              "ev_003"
+            ],
+            "interpretation": [
+              "ev_003"
+            ],
+            "decision": [
+              "ev_003"
+            ]
+          },
+          "review_status": "draft"
+        },
+        {
+          "id": "ku_003",
+          "action": "Check that the base mounting fasteners are present",
+          "cue": null,
+          "interpretation": null,
+          "decision": null,
+          "exception": null,
+          "evidence_ids": [
+            "ev_004"
+          ],
+          "field_evidence": {
+            "action": [
+              "ev_004"
+            ]
+          },
+          "review_status": "draft"
+        }
+      ],
+      "clarifications": [
+        {
+          "id": "clar_001",
+          "knowledge_unit_id": "ku_001",
+          "question": "What observation prompts you to inspect the bearing housing at this point, and what does it tell you?",
+          "status": "pending",
+          "gap_type": "missing_reasoning",
+          "priority": 10,
+          "answer": null,
+          "evidence_id": null,
+          "answered_at": null
+        },
+        {
+          "id": "clar_002",
+          "knowledge_unit_id": "ku_002",
+          "question": "After you rotate the shaft slowly by hand through one full turn, what observation would make you change your next decision?",
+          "status": "pending",
+          "gap_type": "changed_condition",
+          "priority": 5,
+          "answer": null,
+          "evidence_id": null,
+          "answered_at": null
+        },
+        {
+          "id": "clar_003",
+          "knowledge_unit_id": "ku_001",
+          "question": "What mistake could a beginner make when they inspect the bearing housing, and how would you recognize it?",
+          "status": "pending",
+          "gap_type": "beginner_mistake",
+          "priority": 2,
+          "answer": null,
+          "evidence_id": null,
+          "answered_at": null
+        }
+      ]
+    }
+  }
+}

@@ -1,10 +1,15 @@
 import json
 from typing import Literal
 
+from sqlalchemy import delete, select
+
 from app.ai.fixture_provider import FIXTURE_PATH, FixtureAIProvider
 from app.ai.schemas import MediaReference, TaskContext
+from app.core.security import CurrentUser
 from app.database import utcnow
-from app.models.entities import Clarification, Draft, DraftRevision, Evidence, Task
+from app.models.entities import Clarification, Draft, DraftRevision, Evidence, Release, Task
+from app.models.schemas import ClarificationRespond, PublishRequest
+from app.services import clarification_service, publication_service
 
 FIXTURE_TASK_ID = "task_001"
 
@@ -14,8 +19,6 @@ def seed_demo(
 ) -> bool:
     if session.get(Task, FIXTURE_TASK_ID) is not None:
         return False
-    if state == "approved_baseline":
-        raise NotImplementedError("Approved baseline seeding is implemented in Wave 3.")
     fixture = json.loads(FIXTURE_PATH.read_text())
     task_data = fixture["task"]
     provider = provider or FixtureAIProvider()
@@ -69,4 +72,40 @@ def seed_demo(
             )
         )
     session.flush()
+    if state == "approved_baseline":
+        example = fixture["example_expert_responses"][0]
+        clarification_service.respond(
+            session,
+            example["clarification_id"],
+            ClarificationRespond(
+                expected_draft_revision=draft.revision,
+                disposition=example["disposition"],
+                answer=example["answer"],
+                knowledge_update=example["knowledge_update"],
+            ),
+            CurrentUser("expert_001", "expert", example["author_label"]),
+            evidence_id=example["evidence_id"],
+            source_label="illustrative",
+        )
+        publication_service.publish(
+            session,
+            task.id,
+            PublishRequest(
+                expected_revision=draft.revision,
+                approval_note=fixture["baseline_release"]["approval_note"],
+            ),
+            CurrentUser("reviewer_001", "reviewer", "Demo Reviewer"),
+            release_id=fixture["baseline_release"]["release_id"],
+        )
+    session.flush()
     return True
+
+
+def reset_demo(session, state: Literal["fresh", "approved_baseline"] = "fresh") -> None:
+    draft_ids = select(Draft.id).where(Draft.task_id == FIXTURE_TASK_ID)
+    session.execute(delete(DraftRevision).where(DraftRevision.draft_id.in_(draft_ids)))
+    for model in (Clarification, Release, Draft, Evidence):
+        session.execute(delete(model).where(model.task_id == FIXTURE_TASK_ID))
+    session.execute(delete(Task).where(Task.id == FIXTURE_TASK_ID))
+    session.flush()
+    seed_demo(session, state)

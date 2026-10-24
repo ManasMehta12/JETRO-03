@@ -1,0 +1,274 @@
+{
+  "$defs": {
+    "EvidenceItemOut": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "video_segment",
+            "expert_response",
+            "reviewer_correction"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "author": {
+          "title": "Author",
+          "type": "string"
+        },
+        "author_id": {
+          "title": "Author Id",
+          "type": "string"
+        },
+        "content": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content"
+        },
+        "media_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Media Id"
+        },
+        "start_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Ms"
+        },
+        "end_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Ms"
+        },
+        "source_label": {
+          "enum": [
+            "real",
+            "illustrative"
+          ],
+          "title": "Source Label",
+          "type": "string"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "type",
+        "author",
+        "author_id",
+        "source_label",
+        "created_at"
+      ],
+      "title": "EvidenceItemOut",
+      "type": "object"
+    },
+    "KnowledgeUnit": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "cue": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cue"
+        },
+        "interpretation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interpretation"
+        },
+        "decision": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision"
+        },
+        "exception": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exception"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Evidence Ids",
+          "type": "array"
+        },
+        "field_evidence": {
+          "additionalProperties": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "propertyNames": {
+            "enum": [
+              "action",
+              "cue",
+              "interpretation",
+              "decision",
+              "exception"
+            ]
+          },
+          "title": "Field Evidence",
+          "type": "object"
+        },
+        "review_status": {
+          "default": "draft",
+          "enum": [
+            "draft",
+            "reviewed",
+            "approved"
+          ],
+          "title": "Review Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "action"
+      ],
+      "title": "KnowledgeUnit",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "task_id": {
+      "title": "Task Id",
+      "type": "string"
+    },
+    "version": {
+      "title": "Version",
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "active",
+        "superseded"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "approved_by": {
+      "title": "Approved By",
+      "type": "string"
+    },
+    "approved_at": {
+      "format": "date-time",
+      "title": "Approved At",
+      "type": "string"
+    },
+    "approval_note": {
+      "title": "Approval Note",
+      "type": "string"
+    },
+    "content_hash": {
+      "title": "Content Hash",
+      "type": "string"
+    },
+    "knowledge_units": {
+      "items": {
+        "$ref": "#/$defs/KnowledgeUnit"
+      },
+      "title": "Knowledge Units",
+      "type": "array"
+    },
+    "evidence_items": {
+      "items": {
+        "$ref": "#/$defs/EvidenceItemOut"
+      },
+      "title": "Evidence Items",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "task_id",
+    "version",
+    "status",
+    "approved_by",
+    "approved_at",
+    "approval_note",
+    "content_hash",
+    "knowledge_units",
+    "evidence_items"
+  ],
+  "title": "ReleaseOut",
+  "type": "object"
+}

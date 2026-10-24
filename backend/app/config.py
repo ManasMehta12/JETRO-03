@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     enable_demo_auth: bool = True
     enable_demo_seed: bool = True
     enable_demo_reset: bool = True
-    demo_seed_state: Literal["fresh", "approved_baseline"] = "fresh"
+    demo_seed_state: Literal["fresh", "approved_baseline"] = "approved_baseline"
     enable_grounded_qa: bool = True
     enable_training_pack_export: bool = True
     demo_signing_secret: SecretStr | None = None
