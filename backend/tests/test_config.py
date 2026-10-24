@@ -93,7 +93,15 @@ def test_reserved_media_auth(client):
         ("get", "/api/v1/media/missing"),
     ]:
         assert getattr(client, method)(path).status_code == 401
-        assert getattr(client, method)(path, headers=auth(client, "expert")).status_code == 501
+        kwargs = (
+            {"json": {"media_id": "missing", "mode": "live", "request_id": "test"}}
+            if method == "post"
+            else {}
+        )
+        assert (
+            getattr(client, method)(path, headers=auth(client, "expert"), **kwargs).status_code
+            == 501
+        )
     assert client.get("/api/v1/media/missing/stream").status_code == 501
 
 

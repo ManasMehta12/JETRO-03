@@ -1,6 +1,5 @@
 import hashlib
 import json
-import shutil
 import subprocess
 from datetime import timedelta
 from pathlib import Path
@@ -15,32 +14,6 @@ from app.database import utcnow
 from app.models.entities import Evidence, MediaAsset, Release
 from app.services import evidence_service, media_service
 from tests.conftest import auth
-
-
-@pytest.fixture(scope="session")
-def sample_videos(tmp_path_factory):
-    if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
-        pytest.skip("ffmpeg and ffprobe are required for media tests")
-    root = tmp_path_factory.mktemp("videos")
-    for name, audio in [("ok.mp4", True), ("silent.mp4", False)]:
-        command = [
-            "ffmpeg",
-            "-v",
-            "error",
-            "-f",
-            "lavfi",
-            "-i",
-            "testsrc=duration=3:size=320x240:rate=10",
-        ]
-        if audio:
-            command += ["-f", "lavfi", "-i", "sine=duration=3"]
-        command += ["-c:v", "libx264", "-pix_fmt", "yuv420p"]
-        if audio:
-            command += ["-c:a", "aac", "-shortest"]
-        command += [str(root / name)]
-        subprocess.run(command, check=True, capture_output=True)
-    (root / "fake.mp4").write_bytes(b"not a video")
-    return root
 
 
 def upload(client, sample_videos, name="ok.mp4", role="expert", task_id="task_001"):

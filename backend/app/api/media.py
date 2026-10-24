@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -15,8 +15,8 @@ from app.core.security import (
     verify_playback_token,
 )
 from app.database import get_db
-from app.models.schemas import MediaOut
-from app.services import media_service, task_service
+from app.models.schemas import JobOut, MediaOut, ProcessRequest
+from app.services import media_service, processing_service, task_service
 
 router = APIRouter(tags=["media"])
 
@@ -60,20 +60,33 @@ def get_media(
     return media_service.media_out(media, settings, request.app.state.signing_key, user)
 
 
-@router.post("/tasks/{task_id}/process")
+@router.post("/tasks/{task_id}/process", status_code=202, response_model=JobOut)
 def process_media(
     task_id: str,
+    body: ProcessRequest,
+    session: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
     user: Annotated[CurrentUser, Depends(require_roles("expert", "reviewer"))],
 ):
-    raise feature_disabled("ENABLE_MEDIA_PROCESSING", 5)
+    if not settings.enable_media_processing:
+        raise feature_disabled("ENABLE_MEDIA_PROCESSING", 5)
+    with session.begin():
+        job = processing_service.create_job(session, settings, task_id, body, user)
+        result = processing_service.job_out(job)
+    return JSONResponse(status_code=202, content=result.model_dump(mode="json"))
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", response_model=JobOut)
 def get_job(
     job_id: str,
+    session: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
     user: Annotated[CurrentUser, Depends(require_roles("expert", "reviewer"))],
 ):
-    raise feature_disabled("ENABLE_MEDIA_PROCESSING", 5)
+    if not settings.enable_media_processing:
+        raise feature_disabled("ENABLE_MEDIA_PROCESSING", 5)
+    with session.begin():
+        return processing_service.job_out(processing_service.get_job(session, job_id))
 
 
 @router.get("/media/{media_id}/stream")

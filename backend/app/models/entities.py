@@ -86,6 +86,42 @@ class MediaAsset(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class ProcessingJob(Base):
+    __tablename__ = "processing_jobs"
+    __table_args__ = (UniqueConstraint("task_id", "media_id", "mode", "request_id"),)
+    id: Mapped[str] = mapped_column(primary_key=True)
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id"))
+    media_id: Mapped[str] = mapped_column(ForeignKey("media_assets.id"))
+    mode: Mapped[str]
+    request_id: Mapped[str]
+    requested_by: Mapped[str]
+    status: Mapped[str]
+    stage: Mapped[str]
+    attempt_count: Mapped[int] = mapped_column(default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_owner: Mapped[str | None]
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    provider: Mapped[str]
+    model_id: Mapped[str]
+    prompt_version: Mapped[str]
+    input_sha256: Mapped[str]
+    provider_file_name: Mapped[str | None]
+    provider_file_uri: Mapped[str | None]
+    provider_file_state: Mapped[str | None]
+    provider_uploaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    provider_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    extraction: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    usage: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    warnings: Mapped[list[str]] = mapped_column(JSON, default=list)
+    error_code: Mapped[str | None]
+    error_message: Mapped[str | None]
+    result_draft_id: Mapped[str | None]
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class Clarification(Base):
     __tablename__ = "clarifications"
     id: Mapped[str] = mapped_column(primary_key=True)

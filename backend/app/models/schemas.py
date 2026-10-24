@@ -62,6 +62,47 @@ class MediaOut(BaseModel):
     playback_expires_at: datetime
 
 
+class ProcessRequest(RequestModel):
+    media_id: str = Field(min_length=1, max_length=100)
+    mode: Literal["live", "demo"]
+    request_id: str = Field(min_length=1, max_length=100)
+
+
+class JobError(BaseModel):
+    code: str
+    message: str
+
+
+PROGRESS_LABELS = {
+    "uploaded": "Queued",
+    "preparing_media": "Uploading recording to AI provider",
+    "extracting": "Extracting technical steps",
+    "detecting_gaps": "Detecting knowledge gaps",
+    "ready_for_review": "Draft extracted",
+}
+
+
+class JobOut(BaseModel):
+    job_id: str
+    task_id: str
+    media_id: str
+    mode: Literal["live", "demo"]
+    status: Literal["queued", "running", "completed", "failed"]
+    stage: Literal[
+        "uploaded", "preparing_media", "extracting", "detecting_gaps", "ready_for_review"
+    ]
+    progress_label: str
+    attempt_count: int
+    draft_id: str | None
+    error: JobError | None
+    warnings: list[str]
+    provider: str
+    model_id: str
+    prompt_version: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class ClarificationOut(BaseModel):
     id: str
     knowledge_unit_id: str
