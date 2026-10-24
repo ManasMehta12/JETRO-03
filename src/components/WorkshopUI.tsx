@@ -101,6 +101,7 @@ export function WorkshopTray({ state, enabled, onAction, selectedPart, onSelectP
                   aria-pressed={isEquipped}
                   disabled={!enabled || state.completed}
                   className={`tray-tool-btn ${isEquipped ? 'equipped' : ''}`}
+                  title={`${tool.name} · ${tool.hint}`}
                   onClick={() => {
                     if (state.tool !== tool.id) onAction(`tool:${tool.id}`);
                   }}
@@ -108,7 +109,7 @@ export function WorkshopTray({ state, enabled, onAction, selectedPart, onSelectP
                   <div className="tray-tool-art">
                     <ToolArtwork id={tool.id} />
                   </div>
-                  <strong className="tray-tool-name">{tool.name}</strong>
+                  <strong className="tray-tool-name" title={tool.name}>{tool.name}</strong>
                   {isEquipped && <Check size={12} className="tool-equipped-check" />}
                 </button>
               );
