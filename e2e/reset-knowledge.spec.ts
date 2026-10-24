@@ -35,5 +35,5 @@ test('reset student knowledge resets progress, locks modules, and clears attempt
   await expect(modules.getByRole('button', { name: 'Simulation playground', exact: true })).toBeDisabled();
   await expect(modules.getByRole('button', { name: 'Virtual interview', exact: true })).toBeDisabled();
   await expect(page.getByText('0 of 3 stages complete', { exact: true })).toBeVisible();
-  await expect(page.getByRole('contentinfo', { name: 'Learning status' })).toContainText('All student knowledge, simulation attempts, and evaluation records have been reset.');
+  await expect(page.getByRole('contentinfo', { name: 'Learning status' })).toContainText('Your watch progress, simulation result and interview have been reset.');
 });
