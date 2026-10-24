@@ -1,7 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap');
 
 :root {
-  font-family: 'Open Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-sans: 'Open Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   color: #1a202c;
   background: #f6f8f6;
   font-synthesis: none;
@@ -33,13 +34,18 @@ html, body {
   max-width: 100%;
   background: #f6f8f6;
   color: var(--text-main);
-  font-family: 'Open Sans', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
-button, a, select, input {
+button, a, select, input, textarea, optgroup, option {
   -webkit-tap-highlight-color: transparent;
-  font: inherit;
+  font-family: inherit;
+}
+
+svg text,
+.scene-gizmo-top-right text {
+  font-family: var(--font-sans);
 }
 
 button {
@@ -444,7 +450,7 @@ button:focus-visible, a:focus-visible, select:focus-visible {
 
 .mission-xp strong {
   font-size: 16px;
-  font-weight: 900;
+  font-weight: 800;
   color: var(--text-main);
 }
 
@@ -1608,6 +1614,7 @@ details[open] .checkpoint-chevron {
 .checkpoint-info strong {
   display: block;
   font-size: 11.5px;
+  font-weight: 700;
   color: var(--text-main);
 }
 

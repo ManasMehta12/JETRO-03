@@ -59,6 +59,7 @@ function Fallback({ selected, onSelect, stage, workshop, onWorkshopAction }: Pro
             }}
             aria-pressed={selected === part}
             style={{
+              fontFamily: 'inherit',
               border: '1px solid #9bab9f',
               borderRadius: 8,
               padding: '9px 12px',
@@ -77,6 +78,7 @@ function Fallback({ selected, onSelect, stage, workshop, onWorkshopAction }: Pro
         <button
           onClick={() => onWorkshopAction?.(`place:${workshop.heldPart}`)}
           style={{
+            fontFamily: 'inherit',
             margin: '12px auto',
             padding: '10px 18px',
             borderRadius: 8,
@@ -381,6 +383,7 @@ const trayPositions: Record<Part, [number, number, number]> = {
   bearing: [2.75, 0.9, 1.5],
 };
 const hotspotStyle = {
+  fontFamily: 'inherit',
   border: '1px solid #c99845',
   borderRadius: 8,
   color: '#1a3328',
