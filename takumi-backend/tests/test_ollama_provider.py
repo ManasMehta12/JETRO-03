@@ -63,7 +63,7 @@ def ollama_handler(request):
 
 
 @pytest.fixture
-def provider_factory(settings_factory):
+def provider_factory(settings_factory, monkeypatch):
     with ExitStack() as clients:
 
         def factory(ollama=ollama_handler, whisper=whisper_handler):
@@ -82,6 +82,13 @@ def provider_factory(settings_factory):
             )
             provider._stt = clients.enter_context(
                 httpx.Client(base_url="http://whisper.test", transport=httpx.MockTransport(whisper))
+            )
+            monkeypatch.setattr(
+                provider,
+                "_stt_client",
+                lambda: httpx.AsyncClient(
+                    base_url="http://whisper.test", transport=httpx.MockTransport(whisper)
+                ),
             )
             return provider
 
