@@ -21,12 +21,15 @@ class Settings(BaseSettings):
     enable_training_pack_export: bool = True
     demo_signing_secret: SecretStr | None = None
     demo_token_ttl_minutes: int = Field(480, ge=1, le=1440)
-    ai_provider: Literal["fixture", "gemini"] = "fixture"
+    ai_provider: Literal["fixture", "gemini", "ollama"] = "fixture"
     enable_live_extraction: bool = False
     enable_live_gap_generation: bool = False
     enable_live_qa: bool = False
     gemini_api_key: SecretStr | None = None
     gemini_model: str | None = None
+    ollama_base_url: str | None = None
+    ollama_model: str | None = None
+    whisper_base_url: str | None = None
     enable_media_upload: bool = False
     enable_media_processing: bool = False
     enable_media_streaming: bool = False
@@ -73,11 +76,18 @@ class Settings(BaseSettings):
             or not self.gemini_model.strip()
         ):
             raise ValueError("AI_PROVIDER=gemini requires GEMINI_API_KEY and GEMINI_MODEL")
-        if self.enable_live_extraction and not (
-            self.ai_provider == "gemini" and self.enable_media_processing
+        if self.ai_provider == "ollama" and not all(
+            (value or "").strip()
+            for value in (self.ollama_base_url, self.ollama_model, self.whisper_base_url)
         ):
             raise ValueError(
-                "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini "
+                "AI_PROVIDER=ollama requires OLLAMA_BASE_URL, OLLAMA_MODEL and WHISPER_BASE_URL"
+            )
+        if self.enable_live_extraction and not (
+            self.ai_provider in ("gemini", "ollama") and self.enable_media_processing
+        ):
+            raise ValueError(
+                "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini or ollama "
                 "and ENABLE_MEDIA_PROCESSING=true"
             )
         if self.enable_media_processing and not self.enable_media_upload:

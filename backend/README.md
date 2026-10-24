@@ -86,6 +86,44 @@ Without live configuration, processing returns 503 `AI_PROVIDER_UNAVAILABLE`; up
 
 Code path: `app/api/media.py` → `app/services/media_service.py` → `app/services/processing_service.py` → `app/services/processing_worker.py` → `app/ai/gemini_provider.py` / `app/ai/prompts/video_extraction_v1.py` → `app/services/extraction_service.py`.
 
+### Local models (Ollama + whisper.cpp)
+
+Run AI on a separate MacBook Air M2 on the LAN; the backend host needs only `uv`, `ffmpeg` and `ffprobe`, not local AI software. In both backend server and worker environments, replace the Gemini settings with:
+```dotenv
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://192.168.1.42:11434
+OLLAMA_MODEL=qwen2.5:7b
+WHISPER_BASE_URL=http://192.168.1.42:8080
+ENABLE_MEDIA_UPLOAD=true
+ENABLE_MEDIA_STREAMING=true
+ENABLE_MEDIA_PROCESSING=true
+ENABLE_LIVE_EXTRACTION=true
+ENABLE_PROCESSING_WORKER=true
+PROCESSING_PROVIDER_TIMEOUT_SECONDS=300
+PROCESSING_JOB_LEASE_SECONDS=360
+```
+Replace the example IP with the Mac's LAN address. All three Ollama settings are required; missing values fail startup with `AI_PROVIDER=ollama requires OLLAMA_BASE_URL, OLLAMA_MODEL and WHISPER_BASE_URL`.
+
+On the Mac, install and download:
+```sh
+brew install ollama whisper.cpp
+ollama pull qwen2.5:7b
+curl -fL https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.en-q5_1.bin -o ggml-small.en-q5_1.bin
+```
+Keep these commands running in separate Mac terminals:
+```sh
+OLLAMA_HOST=0.0.0.0:11434 ollama serve
+whisper-server --model ./ggml-small.en-q5_1.bin --host 0.0.0.0 --port 8080 --language en --threads 4
+caffeinate -dimsu
+```
+Then use the server, worker and `video_flow.py` commands above on the backend host.
+
+The backend extracts 16 kHz mono WAV with ffmpeg, sends it to whisper-server `/inference`, then sends the transcript to Ollama `/api/chat` with JSON-schema output. The text-only model reads narration only: visual-only knowledge is not captured. Steps use `source_modality="spoken"`; detected language is whisper's language name (for example, `english`). Q&A/gaps remain deterministic.
+
+Recordings without an audio track return 422 `MEDIA_HAS_NO_AUDIO` at processing; a non-speech-only transcript fails the job with non-retryable `NO_SPEECH_DETECTED`. For an 8 GB Mac under memory pressure, try `ggml-base.en-q5_1.bin`, then `OLLAMA_MODEL=qwen2.5:3b`. For Japanese, download `ggml-small-q5_1.bin` instead and use `--language auto`.
+
+**Use trusted demo Wi-Fi only.** Audio and transcripts travel over plain HTTP; upstream whisper-server warns against untrusted networks. **The live Mac run is unverified:** real whisper.cpp transcription, Qwen quality/speed, Mac RAM, LAN reachability and Windows/other demo-host OS behavior remain unverified. Linux tests and a stub-service smoke passed; stubs are not real models. See [V2_CHECKPOINTS.md](docs/V2_CHECKPOINTS.md#ollama-transcript-provider).
+
 ## Verification status
 C4 gates: 113 tests passed; real-server upload and range smoke passed.
 C5 gates: 192 tests passed, 1 opt-in live test skipped; ruff check/format clean.
@@ -104,9 +142,9 @@ See [V2_CHECKPOINTS.md](docs/V2_CHECKPOINTS.md) for observed checkpoint evidence
 | DEMO_SEED_STATE | approved_baseline | Initial release_001 |
 | ENABLE_GROUNDED_QA | true | Answers only from release snapshots |
 | ENABLE_TRAINING_PACK_EXPORT | true | Immutable release export |
-| AI_PROVIDER | fixture | fixture or gemini; Q&A/gaps remain deterministic in both |
+| AI_PROVIDER | fixture | fixture, gemini or ollama; Q&A/gaps remain deterministic |
 | ENABLE_MEDIA_UPLOAD, ENABLE_MEDIA_STREAMING | false | Validated uploads and private ranged playback (C4) |
-| ENABLE_LIVE_EXTRACTION, ENABLE_MEDIA_PROCESSING, ENABLE_PROCESSING_WORKER | false | Gemini extraction, durable jobs and separate worker (C5) |
+| ENABLE_LIVE_EXTRACTION, ENABLE_MEDIA_PROCESSING, ENABLE_PROCESSING_WORKER | false | Gemini or Ollama extraction, durable jobs and separate worker (C5) |
 | ENABLE_LIVE_GAP_GENERATION, ENABLE_LIVE_QA, ENABLE_MULTILINGUAL, ENABLE_EMBEDDINGS, ENABLE_ADVANCED_RETRIEVAL, LOG_MODEL_INPUTS | false | Reserved Checkpoint 6 |
 
 Reserved capabilities fail at startup when enabled. Disabled optional endpoints return HTTP 501 `FEATURE_DISABLED`. Core lifecycle and authentication have no off switch. `.env.example` lists every setting.

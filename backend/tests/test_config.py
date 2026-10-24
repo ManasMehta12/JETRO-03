@@ -25,8 +25,13 @@ def test_defaults():
             "AI_PROVIDER=gemini requires GEMINI_API_KEY and GEMINI_MODEL",
         ),
         (
+            {"ai_provider": "ollama", "ollama_model": "qwen2.5:7b"},
+            "AI_PROVIDER=ollama requires OLLAMA_BASE_URL, OLLAMA_MODEL and WHISPER_BASE_URL",
+        ),
+        (
             {"enable_live_extraction": True},
-            "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini and ENABLE_MEDIA_PROCESSING=true",
+            "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini or ollama "
+            "and ENABLE_MEDIA_PROCESSING=true",
         ),
         (
             {"enable_media_processing": True},

@@ -75,7 +75,7 @@ class JobError(BaseModel):
 
 PROGRESS_LABELS = {
     "uploaded": "Queued",
-    "preparing_media": "Uploading recording to AI provider",
+    "preparing_media": "Preparing recording for AI analysis",
     "extracting": "Extracting technical steps",
     "detecting_gaps": "Detecting knowledge gaps",
     "ready_for_review": "Draft extracted",

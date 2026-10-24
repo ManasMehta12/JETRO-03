@@ -540,3 +540,39 @@ def test_exhausted_expired_lease_fails(live_client, sample_videos):
     assert run(client, FakeExtractor()) is None
     assert job(client, job_id)["status"] == "failed"
     assert job(client, job_id)["error"]["code"] == "PROCESSING_TIMEOUT"
+
+
+def test_ollama_requires_audio_and_records_provenance(make_client, sample_videos):
+    with make_client(
+        ai_provider="ollama",
+        ollama_base_url="http://ollama.test",
+        ollama_model="qwen2.5:7b",
+        whisper_base_url="http://whisper.test",
+        enable_media_upload=True,
+        enable_media_processing=True,
+        enable_live_extraction=True,
+    ) as client:
+        response = client.post(
+            "/api/v1/tasks",
+            headers=auth(client, "expert"),
+            json={
+                "title": "Bearing inspection",
+                "equipment": "Demonstration bench",
+                "language": "en",
+            },
+        )
+        assert response.status_code == 201, response.text
+        task_id = response.json()["id"]
+        response = upload(client, sample_videos, name="silent.mp4", task_id=task_id)
+        assert response.status_code == 201, response.text
+        response = process(client, task_id, response.json()["media_id"])
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["code"] == "MEDIA_HAS_NO_AUDIO"
+
+        task_id, media_id = setup_recording(client, sample_videos)
+        response = process(client, task_id, media_id)
+        assert response.status_code == 202, response.text
+        body = response.json()
+        assert body["provider"] == "ollama"
+        assert body["model_id"] == "qwen2.5:7b"
+        assert body["prompt_version"] == "transcript_extraction_v1"

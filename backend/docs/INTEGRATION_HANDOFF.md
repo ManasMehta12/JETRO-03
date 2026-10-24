@@ -26,7 +26,7 @@ Roles: **all** = expert, reviewer, apprentice; **editors** = expert, reviewer. E
 | POST /tasks/{task_id}/media | Upload validated MP4 | editors | multipart `file` → MediaOut (201) | See media workflow | TASK_NOT_FOUND, INVALID_MEDIA, MEDIA_TOO_LARGE, MEDIA_TOO_LONG, FFPROBE_UNAVAILABLE | ENABLE_MEDIA_UPLOAD |
 | GET /media/{media_id} | Metadata and signed playback URL | all; apprentice release visibility | — → MediaOut (200) | GET /api/v1/media/media_001 | MEDIA_NOT_FOUND | ENABLE_MEDIA_STREAMING |
 | GET /media/{media_id}/stream | Private playback | bearer or media-scoped playback token; same visibility | — → bytes (200/206) | `Range: bytes=0-1023` | MEDIA_NOT_FOUND, 416 unsatisfiable range | ENABLE_MEDIA_STREAMING |
-| POST /tasks/{task_id}/process | Queue extraction | editors | ProcessRequest → JobOut (202) | See media workflow | MEDIA_NOT_FOUND, FIXTURE_NOT_AVAILABLE, AI_PROVIDER_UNAVAILABLE, DRAFT_ALREADY_EXISTS, PROCESSING_ALREADY_RUNNING | ENABLE_MEDIA_PROCESSING |
+| POST /tasks/{task_id}/process | Queue extraction | editors | ProcessRequest → JobOut (202) | See media workflow | MEDIA_NOT_FOUND, MEDIA_HAS_NO_AUDIO, FIXTURE_NOT_AVAILABLE, AI_PROVIDER_UNAVAILABLE, DRAFT_ALREADY_EXISTS, PROCESSING_ALREADY_RUNNING | ENABLE_MEDIA_PROCESSING |
 | GET /jobs/{job_id} | Poll extraction | editors | — → JobOut (200) | GET /api/v1/jobs/job_001 | PROCESSING_JOB_NOT_FOUND | ENABLE_MEDIA_PROCESSING |
 
 Disabled media/processing flags return 501 `FEATURE_DISABLED`. PATCH/PUT/DELETE on release resources return 405 `METHOD_NOT_ALLOWED`; see 14-reject-release-edit.json. Body-size middleware can return 413 for any request.
@@ -119,16 +119,19 @@ Process request (`POST /tasks/task_example/process`):
   "updated_at": "2026-10-24T00:00:00Z"
 }
 ```
+With Ollama, `provider` is `"ollama"`, `model_id` is the configured `OLLAMA_MODEL`, and `prompt_version` is `"transcript_extraction_v1"`. Only narration supports extraction; visual-only knowledge is not captured. Steps use `source_modality="spoken"` and detected language uses whisper's language name (for example, `english`).
 
 States: `queued` → `running` → `completed`/`failed`; retryable failures return to `queued`.
 Stages: `uploaded` → `preparing_media` → `extracting` → `detecting_gaps` → `ready_for_review`.
-Display `progress_label`; failed jobs always show `Processing failed`. Errors have `{code,message}` and may remain visible while a retry is queued.
+Display `progress_label`; `preparing_media` shows `Preparing recording for AI analysis`, and failed jobs always show `Processing failed`. Errors have `{code,message}` and may remain visible while a retry is queued.
 On completion, `draft_id` is set; warnings may include invalid intervals. AI output is unreviewed, never auto-published.
 Invalid intervals retain the unit without evidence and block publication until supported expert corrections.
 Repeating the same task/media/mode/request_id returns the same job, including terminal jobs.
 A different request while a task is queued/running returns 409; a task with a draft returns 409 `DRAFT_ALREADY_EXISTS`.
 `mode=demo` rejects uploaded recordings with 422; it does not substitute fixture content.
 Unconfigured live processing returns 503 with `details.required` listing `AI_PROVIDER=gemini`, `ENABLE_LIVE_EXTRACTION=true`, `GEMINI_API_KEY`, `GEMINI_MODEL`. Media is preserved.
+That legacy required-settings list is unchanged for the Ollama alternative. Ollama startup instead requires `OLLAMA_BASE_URL`, `OLLAMA_MODEL` and `WHISPER_BASE_URL`, plus the shared live-extraction/media-processing flags.
+With Ollama, recordings without an audio track return 422 `MEDIA_HAS_NO_AUDIO`: `Transcript-based extraction needs a recording with narration audio.` A transcript containing only non-speech markers fails the job with non-retryable `NO_SPEECH_DETECTED`.
 
 ### Playback and evidence
 
@@ -147,11 +150,12 @@ Resolve `knowledge_units[].evidence_ids` through `GET /evidence/{id}` for `media
 `app/api/media.py` handles upload/process/poll/stream routes.
 `app/services/media_service.py` validates, stores and signs playback.
 `app/services/processing_service.py` creates idempotent jobs.
-`app/services/processing_worker.py` claims leases, calls Gemini outside transactions and atomically completes drafts.
+`app/services/processing_worker.py` claims leases, calls Gemini or Ollama outside transactions and atomically completes drafts.
 `app/ai/gemini_provider.py` uses the Files API and structured generation.
 `app/ai/prompts/video_extraction_v1.py` supplies the versioned prompt.
+`app/ai/ollama_provider.py` extracts WAV with ffmpeg, transcribes through whisper-server and requests structured output from Ollama; `app/ai/prompts/transcript_extraction_v1.py` supplies its narration-only prompt.
 `app/services/extraction_service.py` validates evidence and persists the draft/clarifications.
-Q&A and gap detection stay deterministic even with `AI_PROVIDER=gemini`.
+Q&A and gap detection stay deterministic with `AI_PROVIDER=gemini` or `AI_PROVIDER=ollama`.
 
 ## Simulation workflow
 
@@ -192,6 +196,7 @@ Fixture task/draft/KU/clarification/evidence/release IDs are stable across demo 
 | MEDIA_NOT_FOUND | 404 |
 | PROCESSING_JOB_NOT_FOUND | 404 |
 | INVALID_MEDIA, MEDIA_TOO_LONG | 422 |
+| MEDIA_HAS_NO_AUDIO | 422 (Ollama process request) |
 | MEDIA_TOO_LARGE | 413 |
 | FFPROBE_UNAVAILABLE | 503 |
 | DRAFT_ALREADY_EXISTS, PROCESSING_ALREADY_RUNNING | 409 |
@@ -199,7 +204,7 @@ Fixture task/draft/KU/clarification/evidence/release IDs are stable across demo 
 Worker failures appear in `JobOut.error` within a 200 polling response, not as polling HTTP failures:
 `AI_PROVIDER_RATE_LIMITED`, `AI_PROVIDER_AUTH_FAILED`, `AI_FILE_EXPIRED`, `AI_PROVIDER_UNAVAILABLE`,
 `AI_FILE_PROCESSING_FAILED`, `PROCESSING_TIMEOUT`, `AI_RESPONSE_INVALID`, `PROCESSING_FAILED`,
-`DRAFT_PERSISTENCE_FAILED`, `DRAFT_ALREADY_EXISTS`, `MEDIA_NOT_FOUND`.
+`DRAFT_PERSISTENCE_FAILED`, `DRAFT_ALREADY_EXISTS`, `MEDIA_NOT_FOUND`, `NO_SPEECH_DETECTED` (non-retryable).
 
 ## Compatibility notes versus API.doc.md
 

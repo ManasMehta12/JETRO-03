@@ -1,5 +1,6 @@
 from sqlalchemy import select
 
+from app.ai.prompts.transcript_extraction_v1 import PROMPT_VERSION as TRANSCRIPT_PROMPT_VERSION
 from app.ai.prompts.video_extraction_v1 import PROMPT_VERSION
 from app.core.errors import AppError
 from app.database import new_id
@@ -29,7 +30,7 @@ def create_job(session, settings, task_id, req, user) -> ProcessingJob:
             "Demo mode cannot analyze uploaded recordings; use the seeded task_001 demo.",
             422,
         )
-    if settings.ai_provider != "gemini" or not settings.enable_live_extraction:
+    if settings.ai_provider not in ("gemini", "ollama") or not settings.enable_live_extraction:
         raise AppError(
             "AI_PROVIDER_UNAVAILABLE",
             "Live extraction is not configured.",
@@ -42,6 +43,12 @@ def create_job(session, settings, task_id, req, user) -> ProcessingJob:
                     "GEMINI_MODEL",
                 ],
             },
+        )
+    if settings.ai_provider == "ollama" and media.audio_codec is None:
+        raise AppError(
+            "MEDIA_HAS_NO_AUDIO",
+            "Transcript-based extraction needs a recording with narration audio.",
+            422,
         )
     if session.scalar(select(Draft.id).where(Draft.task_id == task_id)):
         raise AppError(
@@ -63,6 +70,7 @@ def create_job(session, settings, task_id, req, user) -> ProcessingJob:
             409,
             {"job_id": active.id},
         )
+    ollama = settings.ai_provider == "ollama"
     job = ProcessingJob(
         id=new_id("job"),
         task_id=task_id,
@@ -72,9 +80,9 @@ def create_job(session, settings, task_id, req, user) -> ProcessingJob:
         requested_by=user.id,
         status="queued",
         stage="uploaded",
-        provider="gemini",
-        model_id=settings.gemini_model,
-        prompt_version=PROMPT_VERSION,
+        provider=settings.ai_provider,
+        model_id=settings.ollama_model if ollama else settings.gemini_model,
+        prompt_version=TRANSCRIPT_PROMPT_VERSION if ollama else PROMPT_VERSION,
         input_sha256=media.sha256,
     )
     session.add(job)

@@ -51,9 +51,9 @@ Observed checkpoint evidence is recorded below. Implementation is not proof of s
 
 - Defaults enabled: demo capabilities, grounded fixture Q&A and training-pack export.
 - Defaults disabled: media upload/streaming, media processing, live extraction and worker.
-- Live configuration requires `AI_PROVIDER=gemini`, nonempty `GEMINI_API_KEY` and `GEMINI_MODEL`, `ENABLE_MEDIA_UPLOAD=true`, `ENABLE_MEDIA_PROCESSING=true`, `ENABLE_LIVE_EXTRACTION=true`, `ENABLE_PROCESSING_WORKER=true`; enable streaming for browser playback and `video_flow.py`.
+- Live configuration requires either `AI_PROVIDER=gemini` with nonempty `GEMINI_API_KEY` and `GEMINI_MODEL`, or `AI_PROVIDER=ollama` with nonempty `OLLAMA_BASE_URL`, `OLLAMA_MODEL` and `WHISPER_BASE_URL`; both require `ENABLE_MEDIA_UPLOAD=true`, `ENABLE_MEDIA_PROCESSING=true`, `ENABLE_LIVE_EXTRACTION=true`, `ENABLE_PROCESSING_WORKER=true`. Enable streaming for browser playback and `video_flow.py`.
 - Server and worker share database/storage configuration. Lease (180 seconds by default) must exceed provider timeout (120 seconds).
-- Live Q&A/gaps, multilingual, embeddings, advanced retrieval and model-input logging remain reserved and disabled. Q&A/gaps stay deterministic even when video extraction uses Gemini.
+- Live Q&A/gaps, multilingual, embeddings, advanced retrieval and model-input logging remain reserved and disabled. Q&A/gaps stay deterministic even when video extraction uses Gemini or Ollama.
 
 ## Outstanding work
 
@@ -71,3 +71,23 @@ All commands run from `backend/` after the docs/scripts wave.
 - Default `.env` server on the existing schema-v1 `data/takumi.db`: started without error, `/api/v1/health` reported `schema_version` 3. `scripts/demo_flow.py` → `OK 1` … `OK 16`. `scripts/reset_demo.py --state fresh --yes` → `reset to fresh`, exit 0.
 - Worker preflight: invalid key → `PROCESSING_FAILED: AI provider request failed.`, exit 2, key not echoed; worker flag off → `ENABLE_PROCESSING_WORKER is false`, exit 2.
 - Not run: live Gemini extraction (no API key). Opt-in: `TAKUMI_LIVE_GEMINI=1 GEMINI_API_KEY=… GEMINI_MODEL=… TAKUMI_LIVE_VIDEO=/path/to.mp4 uv run pytest tests/test_gemini_live.py`.
+
+## Ollama transcript provider
+
+Pipeline: backend ffmpeg extracts 16 kHz mono WAV → whisper.cpp `whisper-server` `/inference` with `verbose_json` → non-speech markers such as `[BLANK_AUDIO]` are dropped → cached transcript → Ollama `/api/chat` with JSON-schema `format`, `temperature=0`, `num_ctx=8192`. Cache path is `MEDIA_STORAGE_DIR/transcripts/<media_id>.json`; success deletes it, and missing cache raises `AI_FILE_EXPIRED` so the worker re-transcribes. Steps are forced to `source_modality="spoken"`; `detected_language` uses whisper's language name, such as `english`.
+
+This text-only provider captures narration, not visual-only knowledge. Job provenance is `provider="ollama"`, `model_id=OLLAMA_MODEL`, `prompt_version="transcript_extraction_v1"`. Q&A/gaps remain deterministic. The 503 `details.required` list remains unchanged and still lists Gemini configuration names.
+
+### Verified (Linux development box, 2026-10-25)
+
+- `uv run pytest -q` → 204 passed, 1 skipped; ruff check/format clean. `tests/test_ollama_provider.py` uses mocked whisper/Ollama HTTP via `httpx.MockTransport` and real ffmpeg. `tests/test_processing.py::test_ollama_requires_audio_and_records_provenance` covers the audio gate and job provenance.
+- Worker preflight with `OLLAMA_BASE_URL=http://127.0.0.1:9 WHISPER_BASE_URL=http://127.0.0.1:9` → stderr `AI_PROVIDER_UNAVAILABLE: AI provider is unavailable.`, exit 2.
+- Real server and worker against a local HTTP stub imitating whisper-server/Ollama (**not real models**): an espeak-ng narrated 13.28 s clip produced `range=206`, job `completed`, `knowledge_units=3`, with evidence intervals 0–4000, 4500–9500 and 9500–13000 ms.
+- The stub confirmed a real WAV arrived and `[BLANK_AUDIO]` was absent from the prompt. The job row recorded `provider=ollama`, `model_id=qwen2.5:7b`, `prompt_version=transcript_extraction_v1`, and usage keys `prompt_eval_count`, `eval_count`. The transcript file was removed after success.
+- Silent clip → `HTTP 422 MEDIA_HAS_NO_AUDIO`. Non-speech-only transcription is covered by mocked tests as non-retryable `NO_SPEECH_DETECTED`; no real transcription claim is made.
+
+### Not verified
+
+- Real whisper.cpp transcription and real Qwen output quality/speed on the MacBook Air M2; its RAM is unknown.
+- LAN reachability and Windows/other demo-host OS behavior.
+- AI must run on the separate Mac, not the backend host. See [README local-model setup](../README.md#local-models-ollama--whispercpp) for commands, recommended 300 s provider timeout/360 s lease, memory/language fallbacks and the trusted-network-only warning.
