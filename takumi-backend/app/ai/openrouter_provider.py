@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -11,6 +12,8 @@ from app.ai.schemas import ProviderFile, TaskContext, VideoExtraction, VideoExtr
 
 
 def _openrouter_error(exc: Exception) -> ProviderError:
+    if isinstance(exc, TimeoutError):
+        return ProviderError("PROCESSING_TIMEOUT", "AI provider request timed out.", True)
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
         if status in (401, 403):
@@ -41,6 +44,24 @@ class OpenRouterVideoExtractor(OllamaVideoExtractor):
         )
         self._stt = httpx.Client(base_url=settings.whisper_base_url, timeout=self._timeout)
 
+    def _chat_client(self) -> httpx.AsyncClient:
+        return httpx.AsyncClient(
+            base_url=self._http.base_url,
+            headers=self._http.headers,
+            timeout=self._timeout,
+        )
+
+    def _request_chat(self, payload: dict) -> httpx.Response:
+        async def request():
+            # HTTPX read timeouts reset for each chunk, including OpenRouter keepalives.
+            # Cancellation closes the request and client; no background request survives.
+            async with asyncio.timeout(self._timeout):
+                async with self._chat_client() as client:
+                    return await client.post("/chat/completions", json=payload)
+
+        # Extraction runs in the synchronous worker, with a fresh client/loop per call.
+        return asyncio.run(request())
+
     def check_model(self) -> None:
         try:
             # One reachable model is enough; OpenRouter skips the unavailable ones.
@@ -66,9 +87,8 @@ class OpenRouterVideoExtractor(OllamaVideoExtractor):
                 transcript = json.loads((self._dir / file.name).read_text())
             except FileNotFoundError:
                 raise ProviderError("AI_FILE_EXPIRED", "Transcript is unavailable.", True) from None
-            response = self._http.post(
-                "/chat/completions",
-                json={
+            response = self._request_chat(
+                {
                     "models": self._models,
                     # Route only to providers that honor the strict JSON schema.
                     "provider": {"require_parameters": True},
