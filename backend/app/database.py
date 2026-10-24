@@ -43,7 +43,9 @@ def build_engine(settings):
 
         @event.listens_for(engine, "begin")
         def sqlite_begin(connection):
-            connection.exec_driver_sql("BEGIN")
+            # IMMEDIATE serializes writers up front; a deferred BEGIN lets a stale WAL read
+            # snapshot fail on write with SQLITE_BUSY_SNAPSHOT instead of REVISION_CONFLICT.
+            connection.exec_driver_sql("BEGIN IMMEDIATE")
 
     return engine
 
