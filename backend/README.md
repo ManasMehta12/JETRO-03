@@ -124,6 +124,24 @@ Recordings without an audio track return 422 `MEDIA_HAS_NO_AUDIO` at processing;
 
 **Use trusted demo Wi-Fi only.** Audio and transcripts travel over plain HTTP; upstream whisper-server warns against untrusted networks. **The live Mac run is unverified:** real whisper.cpp transcription, Qwen quality/speed, Mac RAM, LAN reachability and Windows/other demo-host OS behavior remain unverified. Linux tests and a stub-service smoke passed; stubs are not real models. See [V2_CHECKPOINTS.md](docs/V2_CHECKPOINTS.md#ollama-transcript-provider).
 
+### OpenRouter extraction + local whisper.cpp
+
+This option keeps the existing local whisper.cpp transcription stage and sends only the timestamped transcript to OpenRouter for extraction. Configure the backend server and worker with:
+```dotenv
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=your-key
+OPENROUTER_MODEL=provider/model
+WHISPER_BASE_URL=http://192.168.1.42:8080
+ENABLE_MEDIA_UPLOAD=true
+ENABLE_MEDIA_STREAMING=true
+ENABLE_MEDIA_PROCESSING=true
+ENABLE_LIVE_EXTRACTION=true
+ENABLE_PROCESSING_WORKER=true
+PROCESSING_PROVIDER_TIMEOUT_SECONDS=300
+PROCESSING_JOB_LEASE_SECONDS=360
+```
+Choose a model that supports strict JSON-schema structured output. The worker validates output against the application schema; unsupported model/schema combinations fail as retryable invalid output. OpenRouter receives the transcript (including technical discussion), not the original video/audio. Transcription remains on the trusted LAN. Set `OPENROUTER_MODEL` to a fixed model ID so job provenance and comparisons remain reproducible. Provider/model availability and extraction quality must be verified with the selected key and model.
+
 ## Verification status
 C4 gates: 113 tests passed; real-server upload and range smoke passed.
 C5 gates: 192 tests passed, 1 opt-in live test skipped; ruff check/format clean.
@@ -142,9 +160,9 @@ See [V2_CHECKPOINTS.md](docs/V2_CHECKPOINTS.md) for observed checkpoint evidence
 | DEMO_SEED_STATE | approved_baseline | Initial release_001 |
 | ENABLE_GROUNDED_QA | true | Answers only from release snapshots |
 | ENABLE_TRAINING_PACK_EXPORT | true | Immutable release export |
-| AI_PROVIDER | fixture | fixture, gemini or ollama; Q&A/gaps remain deterministic |
+| AI_PROVIDER | fixture | fixture, gemini, ollama or openrouter; Q&A/gaps remain deterministic |
 | ENABLE_MEDIA_UPLOAD, ENABLE_MEDIA_STREAMING | false | Validated uploads and private ranged playback (C4) |
-| ENABLE_LIVE_EXTRACTION, ENABLE_MEDIA_PROCESSING, ENABLE_PROCESSING_WORKER | false | Gemini or Ollama extraction, durable jobs and separate worker (C5) |
+| ENABLE_LIVE_EXTRACTION, ENABLE_MEDIA_PROCESSING, ENABLE_PROCESSING_WORKER | false | Gemini, Ollama or OpenRouter extraction, durable jobs and separate worker (C5) |
 | ENABLE_LIVE_GAP_GENERATION, ENABLE_LIVE_QA, ENABLE_MULTILINGUAL, ENABLE_EMBEDDINGS, ENABLE_ADVANCED_RETRIEVAL, LOG_MODEL_INPUTS | false | Reserved Checkpoint 6 |
 
 Reserved capabilities fail at startup when enabled. Disabled optional endpoints return HTTP 501 `FEATURE_DISABLED`. Core lifecycle and authentication have no off switch. `.env.example` lists every setting.

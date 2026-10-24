@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     enable_training_pack_export: bool = True
     demo_signing_secret: SecretStr | None = None
     demo_token_ttl_minutes: int = Field(480, ge=1, le=1440)
-    ai_provider: Literal["fixture", "gemini", "ollama"] = "fixture"
+    ai_provider: Literal["fixture", "gemini", "ollama", "openrouter"] = "fixture"
     enable_live_extraction: bool = False
     enable_live_gap_generation: bool = False
     enable_live_qa: bool = False
@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     ollama_base_url: str | None = None
     ollama_model: str | None = None
     whisper_base_url: str | None = None
+    openrouter_api_key: SecretStr | None = None
+    openrouter_model: str | None = None
     enable_media_upload: bool = False
     enable_media_processing: bool = False
     enable_media_streaming: bool = False
@@ -83,11 +85,21 @@ class Settings(BaseSettings):
             raise ValueError(
                 "AI_PROVIDER=ollama requires OLLAMA_BASE_URL, OLLAMA_MODEL and WHISPER_BASE_URL"
             )
-        if self.enable_live_extraction and not (
-            self.ai_provider in ("gemini", "ollama") and self.enable_media_processing
+        if self.ai_provider == "openrouter" and (
+            not self.openrouter_api_key
+            or not self.openrouter_api_key.get_secret_value().strip()
+            or not (self.openrouter_model or "").strip()
+            or not (self.whisper_base_url or "").strip()
         ):
             raise ValueError(
-                "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini or ollama "
+                "AI_PROVIDER=openrouter requires OPENROUTER_API_KEY, OPENROUTER_MODEL "
+                "and WHISPER_BASE_URL"
+            )
+        if self.enable_live_extraction and not (
+            self.ai_provider in ("gemini", "ollama", "openrouter") and self.enable_media_processing
+        ):
+            raise ValueError(
+                "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini, ollama or openrouter "
                 "and ENABLE_MEDIA_PROCESSING=true"
             )
         if self.enable_media_processing and not self.enable_media_upload:

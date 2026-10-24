@@ -29,8 +29,13 @@ def test_defaults():
             "AI_PROVIDER=ollama requires OLLAMA_BASE_URL, OLLAMA_MODEL and WHISPER_BASE_URL",
         ),
         (
+            {"ai_provider": "openrouter", "openrouter_model": "provider/model"},
+            "AI_PROVIDER=openrouter requires OPENROUTER_API_KEY, OPENROUTER_MODEL "
+            "and WHISPER_BASE_URL",
+        ),
+        (
             {"enable_live_extraction": True},
-            "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini or ollama "
+            "ENABLE_LIVE_EXTRACTION requires AI_PROVIDER=gemini, ollama or openrouter "
             "and ENABLE_MEDIA_PROCESSING=true",
         ),
         (
@@ -58,6 +63,17 @@ def test_invalid_settings(overrides, message):
 def test_gemini_settings():
     settings = Settings(_env_file=None, ai_provider="gemini", gemini_api_key="k", gemini_model="m")
     assert settings.ai_provider == "gemini"
+
+
+def test_openrouter_settings():
+    settings = Settings(
+        _env_file=None,
+        ai_provider="openrouter",
+        openrouter_api_key="secret",
+        openrouter_model="provider/model",
+        whisper_base_url="http://whisper.test",
+    )
+    assert settings.ai_provider == "openrouter"
 
 
 def test_health(client):

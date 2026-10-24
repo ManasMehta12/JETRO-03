@@ -291,8 +291,8 @@ def run_forever(settings) -> int:
     if not settings.enable_processing_worker:
         print("ENABLE_PROCESSING_WORKER is false", file=sys.stderr)
         return 2
-    if settings.ai_provider not in ("gemini", "ollama"):
-        print("Worker requires AI_PROVIDER=gemini or ollama", file=sys.stderr)
+    if settings.ai_provider not in ("gemini", "ollama", "openrouter"):
+        print("Worker requires AI_PROVIDER=gemini, ollama or openrouter", file=sys.stderr)
         return 2
     engine = build_engine(settings)
     try:

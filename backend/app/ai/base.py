@@ -34,8 +34,8 @@ class KnowledgeAIProvider(Protocol):
 def get_ai_provider(settings) -> KnowledgeAIProvider:
     from app.ai.fixture_provider import FixtureAIProvider
 
-    # Q&A and gap detection stay deterministic in V2; Gemini/Ollama only do worker video extraction.
-    if settings.ai_provider in ("fixture", "gemini", "ollama"):
+    # Q&A and gap detection stay deterministic in V2; live providers only do worker extraction.
+    if settings.ai_provider in ("fixture", "gemini", "ollama", "openrouter"):
         return FixtureAIProvider()
     raise AppError("AI_PROVIDER_UNAVAILABLE", "Configured AI provider is not available.", 503)
 
@@ -81,6 +81,10 @@ def get_video_extractor(settings) -> VideoExtractor:
         from app.ai.ollama_provider import OllamaVideoExtractor
 
         return OllamaVideoExtractor(settings)
+    if settings.ai_provider == "openrouter":
+        from app.ai.openrouter_provider import OpenRouterVideoExtractor
+
+        return OpenRouterVideoExtractor(settings)
 
     from app.ai.gemini_provider import GeminiAIProvider
 

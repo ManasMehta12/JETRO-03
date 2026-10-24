@@ -120,6 +120,7 @@ Process request (`POST /tasks/task_example/process`):
 }
 ```
 With Ollama, `provider` is `"ollama"`, `model_id` is the configured `OLLAMA_MODEL`, and `prompt_version` is `"transcript_extraction_v1"`. Only narration supports extraction; visual-only knowledge is not captured. Steps use `source_modality="spoken"` and detected language uses whisper's language name (for example, `english`).
+With OpenRouter, `provider` is `"openrouter"`, `model_id` is the configured `OPENROUTER_MODEL`, and extraction uses the same transcript prompt and local whisper.cpp stage. Only the transcript is sent to OpenRouter; the recording itself stays on the backend/LAN.
 
 States: `queued` → `running` → `completed`/`failed`; retryable failures return to `queued`.
 Stages: `uploaded` → `preparing_media` → `extracting` → `detecting_gaps` → `ready_for_review`.
@@ -130,7 +131,7 @@ Repeating the same task/media/mode/request_id returns the same job, including te
 A different request while a task is queued/running returns 409; a task with a draft returns 409 `DRAFT_ALREADY_EXISTS`.
 `mode=demo` rejects uploaded recordings with 422; it does not substitute fixture content.
 Unconfigured live processing returns 503 with `details.required` listing `AI_PROVIDER=gemini`, `ENABLE_LIVE_EXTRACTION=true`, `GEMINI_API_KEY`, `GEMINI_MODEL`. Media is preserved.
-That legacy required-settings list is unchanged for the Ollama alternative. Ollama startup instead requires `OLLAMA_BASE_URL`, `OLLAMA_MODEL` and `WHISPER_BASE_URL`, plus the shared live-extraction/media-processing flags.
+That legacy required-settings list is unchanged for the alternatives. Ollama startup requires `OLLAMA_BASE_URL`, `OLLAMA_MODEL` and `WHISPER_BASE_URL`; OpenRouter requires `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` and `WHISPER_BASE_URL`, plus the shared live-extraction/media-processing flags.
 With Ollama, recordings without an audio track return 422 `MEDIA_HAS_NO_AUDIO`: `Transcript-based extraction needs a recording with narration audio.` A transcript containing only non-speech markers fails the job with non-retryable `NO_SPEECH_DETECTED`.
 
 ### Playback and evidence
@@ -150,12 +151,13 @@ Resolve `knowledge_units[].evidence_ids` through `GET /evidence/{id}` for `media
 `app/api/media.py` handles upload/process/poll/stream routes.
 `app/services/media_service.py` validates, stores and signs playback.
 `app/services/processing_service.py` creates idempotent jobs.
-`app/services/processing_worker.py` claims leases, calls Gemini or Ollama outside transactions and atomically completes drafts.
+`app/services/processing_worker.py` claims leases, calls Gemini, Ollama or OpenRouter outside transactions and atomically completes drafts.
 `app/ai/gemini_provider.py` uses the Files API and structured generation.
 `app/ai/prompts/video_extraction_v1.py` supplies the versioned prompt.
 `app/ai/ollama_provider.py` extracts WAV with ffmpeg, transcribes through whisper-server and requests structured output from Ollama; `app/ai/prompts/transcript_extraction_v1.py` supplies its narration-only prompt.
+`app/ai/openrouter_provider.py` reuses the local whisper.cpp transcript stage and requests strict JSON-schema output from OpenRouter.
 `app/services/extraction_service.py` validates evidence and persists the draft/clarifications.
-Q&A and gap detection stay deterministic with `AI_PROVIDER=gemini` or `AI_PROVIDER=ollama`.
+Q&A and gap detection stay deterministic with `AI_PROVIDER=gemini`, `ollama` or `openrouter`.
 
 ## Simulation workflow
 

@@ -30,21 +30,27 @@ def create_job(session, settings, task_id, req, user) -> ProcessingJob:
             "Demo mode cannot analyze uploaded recordings; use the seeded task_001 demo.",
             422,
         )
-    if settings.ai_provider not in ("gemini", "ollama") or not settings.enable_live_extraction:
+    if settings.ai_provider not in ("gemini", "ollama", "openrouter") or not (
+        settings.enable_live_extraction
+    ):
+        required = {
+            "gemini": ["GEMINI_API_KEY", "GEMINI_MODEL"],
+            "ollama": ["OLLAMA_BASE_URL", "OLLAMA_MODEL", "WHISPER_BASE_URL"],
+            "openrouter": ["OPENROUTER_API_KEY", "OPENROUTER_MODEL", "WHISPER_BASE_URL"],
+        }.get(settings.ai_provider, [])
         raise AppError(
             "AI_PROVIDER_UNAVAILABLE",
             "Live extraction is not configured.",
             503,
             {
                 "required": [
-                    "AI_PROVIDER=gemini",
+                    f"AI_PROVIDER={settings.ai_provider}",
                     "ENABLE_LIVE_EXTRACTION=true",
-                    "GEMINI_API_KEY",
-                    "GEMINI_MODEL",
+                    *required,
                 ],
             },
         )
-    if settings.ai_provider == "ollama" and media.audio_codec is None:
+    if settings.ai_provider in ("ollama", "openrouter") and media.audio_codec is None:
         raise AppError(
             "MEDIA_HAS_NO_AUDIO",
             "Transcript-based extraction needs a recording with narration audio.",
@@ -70,7 +76,7 @@ def create_job(session, settings, task_id, req, user) -> ProcessingJob:
             409,
             {"job_id": active.id},
         )
-    ollama = settings.ai_provider == "ollama"
+    transcript_provider = settings.ai_provider in ("ollama", "openrouter")
     job = ProcessingJob(
         id=new_id("job"),
         task_id=task_id,
@@ -81,8 +87,14 @@ def create_job(session, settings, task_id, req, user) -> ProcessingJob:
         status="queued",
         stage="uploaded",
         provider=settings.ai_provider,
-        model_id=settings.ollama_model if ollama else settings.gemini_model,
-        prompt_version=TRANSCRIPT_PROMPT_VERSION if ollama else PROMPT_VERSION,
+        model_id=(
+            settings.ollama_model
+            if settings.ai_provider == "ollama"
+            else settings.openrouter_model
+            if settings.ai_provider == "openrouter"
+            else settings.gemini_model
+        ),
+        prompt_version=TRANSCRIPT_PROMPT_VERSION if transcript_provider else PROMPT_VERSION,
         input_sha256=media.sha256,
     )
     session.add(job)
