@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { openPlayground } from './learning-fixtures';
 
 async function inspectAll(page: Page) {
   for (const name of ['Base plate', 'Bearing housing', 'Drive shaft', 'Ball bearing']) {
@@ -47,7 +48,7 @@ async function completeChecks(page: Page, withQuiz = true) {
   if (withQuiz) await answerQuestions(page);
 }
 
-test.beforeEach(async ({ page }) => { await page.goto('/'); });
+test.beforeEach(async ({ page }) => { await openPlayground(page); });
 
 test('standard flow records all checks, correct quiz answers and supported release', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Bearing assembly' })).toBeVisible();
@@ -85,7 +86,7 @@ test('uncertain fit has fixed unresolved evidence and rewards escalation', async
 test('progress survives reload and reset requires explicit confirmation', async ({ page }) => {
   await page.getByRole('button', { name: 'Select Base plate', exact: true }).click();
   await page.getByRole('button', { name: 'Inspect component', exact: true }).click();
-  await page.reload();
+  await page.reload(); await page.getByRole('navigation', { name: 'Course modules' }).getByRole('button', { name: 'Simulation playground', exact: true }).click();
   await expect(page.getByText('1 / 4 inspected', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Select Base plate', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Inspection recorded', exact: true })).toBeDisabled();
@@ -95,7 +96,7 @@ test('progress survives reload and reset requires explicit confirmation', async 
   await page.getByRole('button', { name: 'Restart exercise', exact: true }).click();
   await page.getByRole('button', { name: 'Start fresh', exact: true }).click();
   await expect(page.getByText('0 / 4 inspected', { exact: true })).toBeVisible();
-  await expect(page.getByText('0 recorded actions', { exact: true })).toBeVisible();
+  await expect(page.getByRole('contentinfo', { name: 'Learning status' }).getByText('0 recorded actions', { exact: true })).toBeVisible();
 });
 
 test('assessment hides reasoning until the final decision', async ({ page }) => {
@@ -123,7 +124,7 @@ test('3D viewport and controls render, and desktop screenshot is captured', asyn
   const runtimeErrors: string[] = [];
   page.on('pageerror', error => runtimeErrors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') runtimeErrors.push(message.text()); });
-  await page.reload();
+  await page.reload(); await page.getByRole('navigation', { name: 'Course modules' }).getByRole('button', { name: 'Simulation playground', exact: true }).click();
   await expect(page.locator('canvas')).toBeVisible({ timeout: 30_000 });
   const toggle = page.getByRole('button', { name: 'Exploded view', exact: true });
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
@@ -159,7 +160,7 @@ test('a device without WebGL retains the deterministic inspection workflow', asy
       return original.apply(this, args);
     } as typeof original;
   });
-  await page.reload();
+  await page.reload(); await page.getByRole('navigation', { name: 'Course modules' }).getByRole('button', { name: 'Simulation playground', exact: true }).click();
   await expect(page.getByRole('img', { name: 'Bearing assembly schematic', exact: true })).toBeVisible({ timeout: 30_000 });
   await page.getByRole('button', { name: 'Inspect component', exact: true }).click();
   await expect(page.getByText('1 / 4 inspected', { exact: true })).toBeVisible();
@@ -169,7 +170,7 @@ test('mission completion remains locked until the assembly and knowledge checkpo
   await completeChecks(page, false);
   await expect(page.getByRole('button', { name: 'Release assembly', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Escalate for review', exact: true })).toBeDisabled();
-  await page.reload();
+  await page.reload(); await page.getByRole('navigation', { name: 'Course modules' }).getByRole('button', { name: 'Simulation playground', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Release assembly', exact: true })).toBeDisabled();
   await answerQuestions(page);
   await expect(page.getByRole('button', { name: 'Release assembly', exact: true })).toBeEnabled();
@@ -192,7 +193,7 @@ test('wrong held part, wrong tool and wrong bolt order do not advance assembly c
   await expect(page.getByRole('alert')).toContainText('Select the alignment jig first.');
   await page.getByRole('button', { name: 'Use Alignment jig', exact: true }).click();
   await page.getByRole('button', { name: 'Nudge left', exact: true }).click();
-  await page.reload();
+  await page.reload(); await page.getByRole('navigation', { name: 'Course modules' }).getByRole('button', { name: 'Simulation playground', exact: true }).click();
   await page.getByRole('button', { name: 'Nudge left', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Insert shaft', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Pick up Drive shaft', exact: true }).click();
@@ -228,12 +229,12 @@ test('drag placement and scene targets install actual components without duplica
 });
 
 test('workspace navigation, inspection shortcuts and expandable checkpoints stay in sync', async ({ page }) => {
-  const navigation = page.getByRole('navigation', { name: 'Workspace' });
-  await navigation.getByRole('button', { name: 'Field notes', exact: true }).click();
+  const navigation = page.getByRole('tablist', { name: 'Learning views' });
+  await navigation.getByRole('tab', { name: 'Insights', exact: true }).click();
   await expect(page.getByRole('tab', { name: 'Insights', exact: true })).toHaveAttribute('aria-selected', 'true');
-  await expect(navigation.getByRole('button', { name: 'Field notes', exact: true })).toHaveAttribute('aria-current', 'page');
-  await navigation.getByRole('button', { name: 'Playground', exact: true }).click();
-  await expect(page.getByRole('tabpanel')).toContainText('01. Inspect the components');
+  await expect(navigation.getByRole('tab', { name: 'Insights', exact: true })).toHaveAttribute('aria-selected', 'true');
+  await navigation.getByRole('tab', { name: 'Practice', exact: true }).click();
+  await expect(page.getByRole('tabpanel')).toContainText('Inspect');
   await page.getByRole('button', { name: 'Focus Base plate', exact: true }).click();
   await page.getByRole('button', { name: 'Inspect component', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Focus Base plate', exact: true })).toHaveAttribute('aria-pressed', 'true');

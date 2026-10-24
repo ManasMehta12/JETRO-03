@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     log_model_inputs: bool = False
     cors_origins: str = "http://localhost:3000"
     max_request_body_kb: int = 1024
+    course_video_url: str = ""
+    course_video_duration_seconds: int = Field(60, ge=1, le=86400)
 
     @property
     def cors_origin_list(self) -> list[str]:

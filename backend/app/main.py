@@ -5,11 +5,24 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import sessionmaker
 
-from app.api import auth, clarifications, demo, drafts, evidence, health, media, qa, releases, tasks
+from app.api import (
+    auth,
+    clarifications,
+    demo,
+    drafts,
+    evidence,
+    health,
+    media,
+    qa,
+    releases,
+    studio,
+    tasks,
+)
 from app.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import add_http_middlewares, configure_logging
 from app.database import build_engine, init_db
+from app.learning import router as learning
 from app.services.seed_service import seed_demo
 
 
@@ -56,6 +69,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         qa,
         media,
         demo,
+        learning,
+        studio,
     ):
         app.include_router(module.router, prefix="/api/v1")
     return app

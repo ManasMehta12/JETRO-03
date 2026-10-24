@@ -1,34 +1,57 @@
-# Takumi bearing assembly playground
+# Takumi learning workspace
 
-Interactive React Three Fiber frontend with a hands-on bearing assembly mission, exploded view, two fixed scenarios, three multiple-choice questions and authored learning notes. Pick and place components, equip tools, align the shaft, press the bearing, secure bolts and use the handwheel. Twelve checkpoints award up to 600 XP and gate successful completion.
+A unified apprentice dashboard for the current shaft-and-bearing course. One consistent header provides Course content, Simulation playground, and Virtual interview. Progress, results, manual completions, and interview answers are stored by the FastAPI backend in SQLite.
+
+## Run locally
+
+Install Node.js and Python 3.11 with `uv`, then run from the repository root:
 
 ```powershell
 npm install
+uv sync --directory backend
 npm run dev
 ```
 
-Open the local URL printed by Vite. Follow the [demo workflow and checkpoint list](markdowns/globals/Takumi_Bearing_Assembly_Demo_Workflow.md). Inspect each of the four parts and request the observation to unlock the tray. Use pick-and-place targets or drag tray parts onto the workbench. Equip the alignment jig, bearing sleeve, hex key and handwheel for their matching tasks. Answer all three questions before making the final release or escalation decision. Change scenarios or learning mode using the selectors; confirmation starts a new attempt. Progress is restored from browser local storage by replaying validated actions. Gameplay uses storage version 2, so older inspection-only attempts start fresh.
+This starts the learning backend on `127.0.0.1:8000` and the Vite frontend on `127.0.0.1:5173`. Open the frontend URL. For separate processes use `npm run dev:backend` and `npm run dev:frontend`. The frontend proxies `/api` to the backend; `VITE_API_TARGET` can override its address. Production hosting must similarly route `/api` to the backend.
+
+The local application signs in as the existing demo apprentice. This is a shared demo identity, not a production login system. The seeded approved knowledge release supplies the course outline. Existing Studio knowledge-engine APIs remain available.
+
+## Learning sequence
+
+1. **Course content:** play the recording within the interface. Playback resumes from the server record; visible playback sends timed heartbeats. Watching the course unlocks the playground. You can also explicitly select **Mark section complete**.
+2. **Simulation playground:** inspect components, assemble the bearing, use the tools, answer the knowledge checks, and make a release or escalation decision. The backend replays the submitted actions to calculate the result before unlocking the interview. **Mark section complete** can also unlock the interview without a simulation score.
+3. **Virtual interview:** answer three authored technical questions and optionally record an ungraded reflection. The backend grades fixed answer choices and stores the evaluation. Reloading restores the saved progression and interview.
+
+Manual completion records the learner, source context, stage, and timestamp. It does not invent watched time, simulation attempts, or passing scores. The final evaluation explicitly identifies a manually completed, unassessed playground.
+
+## Connect the course video
+
+Set these values in `backend/.env` and restart the backend:
+
+```dotenv
+COURSE_VIDEO_URL=https://your-host.example/course.mp4
+COURSE_VIDEO_DURATION_SECONDS=120
+```
+
+Use the recording's actual duration. The direct MP4/WebM URL must be accessible to the browser and permit embedded playback. No recording has been supplied yet, so the initial Course tab shows its outline and an honest recording-not-configured state. Manual completion remains available. Changing the recording or reviewed release starts a new course progression context.
+
+## Validation
 
 ```powershell
 npm test
 npm run build
 npm run test:e2e
+uv run --directory backend pytest tests/test_learning.py -q
 ```
 
-Browser tests require Playwright Chromium (`npx playwright install chromium`). To use an existing Chromium installation, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to its executable path. Tests start the Vite server automatically and exercise full flows, persistence, assessment display, mobile layout and the WebGL fallback. Screenshots are written under `test-results/`.
+Browser tests need Playwright Chromium (`npx playwright install chromium`), or set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to an installed Chrome executable. They start isolated test servers on ports 5174 and 8001, use a six-second test recording, and write test databases/screenshots under ignored `test-results/`. The recording in `e2e/fixtures/` is only a playback test asset, never course content. Regenerate it with `node scripts/create-test-video.mjs` if needed.
 
-## Implementation boundaries
+The frontend suite covers the dashboard, locked stages, video playback and seek restrictions, manual unlocks, interview evaluation and reload, the original simulation scenarios, responsive layouts, and the WebGL fallback. Backend learning tests cover prerequisite enforcement, server-authoritative scores, source changes, ownership, private rubric choices, revisions, duplicate submissions, and manual completions.
 
-This request implements the frontend of the [Playground plan](markdowns/globals/Takumi_Apprentice_Playground_Implementation_Plan.md). Vite provides a small standalone demo instead of the planned shared Next.js application. No backend, real expert evidence, API authentication, private server rubrics, media playback or Viva service is connected. All fixture content is visible in the client bundle; assessment mode conceals feedback in the interface but is not a secure examination system. Notes are illustrative and await instructor review. The model demonstrates authored movement and decisions, not mechanical physics or practical certification.
+## Implementation
 
-`src/simulation.ts` contains the attempt state machine and frozen authored content. `src/workshop.ts` controls placement, tools, detents, pressing, bolt order and rotation. `src/mission.ts` derives the twelve checkpoints and XP. `src/persistence.ts` restores validated action history rather than trusting stored scores. `src/components/AssemblyScene.tsx` owns the 3D view and equivalent schematic fallback. All assets are procedural and require no remote downloads at runtime. IDs, question order, outcomes and scores are fixed for the same input sequence; camera movement and animation timing do not affect training results.
+`src/components/CourseHub.tsx` owns the unified dashboard and stage navigation. `CoursePlayer.tsx` handles embedded recording playback; `src/learning-api.ts` handles typed authenticated API requests. `src/App.tsx` remains the simulation workspace, embedded without a second header or status section. Local in-progress simulation histories are scoped to the course release and recording; completed results are persisted on the server.
 
-Work was divided among agents for simulation and unit tests, the 3D environment, browser integration tests, and frontend integration.
+The isolated `backend/app/learning/` package integrates with the existing authentication, reviewed releases, database, and error envelopes. See [learning API documentation](backend/docs/LEARNING_INTEGRATION.md), [backend integration handoff](backend/docs/INTEGRATION_HANDOFF.md), and the [simulation workflow](markdowns/globals/Takumi_Bearing_Assembly_Demo_Workflow.md).
 
-## UI redesign progress
-
-The workspace uses a full-width module header, an off-white/grey palette with restrained green accents, and a compact engineering workbench. Desktop panels share the available viewport height, with internal scrolling for longer instructions, component tools, and checkpoint lists. Scenario and progress widgets share a compact row. Save state, practice notes, feedback, rewards, and warnings are contained in one aligned bottom status panel. Small screens use a responsive vertical layout. Learning tabs support arrow keys, Home, and End. The procedural 3D scene renders on interaction and while parts animate, then rests when idle.
-
-Design references: [IBM Carbon UI shell](https://v10.carbondesignsystem.com/components/UI-shell-header/usage/) for persistent product navigation, [SAP Fiori page structure](https://www.sap.com/design-system/fiori-design-web/v1-142/discover/sap-products/sap-s4hana-only/best-practices-for-designing-sap-fiori-apps) for compact page context and work areas, and [Autodesk Fusion](https://help.autodesk.com/cloudhelp/ENU/Fusion-GetStarted/files/GS-THE-FUSION-INTERFACE.htm) for grouped tools around an assembly canvas.
-
-The browser suite covers full mission flows, header module selection, inspection shortcuts, keyboard expansion of checkpoints, desktop viewport containment, internal panel scrolling, mobile overflow, and the WebGL fallback. Use `PLAYWRIGHT_CHROMIUM_EXECUTABLE` when running against an installed Chrome browser.
+Course fixtures and assessment remain illustrative. The simulation demonstrates authored movement and judgment rather than mechanical physics. The interview is scripted, and free-text reflections are ungraded. Results do not replace supervised practical assessment. The existing Studio media-processing tests also require system ffmpeg/ffprobe.

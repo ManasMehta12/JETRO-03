@@ -18,6 +18,7 @@ from app.models.entities import (
     Task,
 )
 from app.models.schemas import ClarificationRespond, PublishRequest
+from app.models.studio import StudioAudit, StudioAuthorization, StudioEvaluation
 from app.services import clarification_service, publication_service
 
 FIXTURE_TASK_ID = "task_001"
@@ -116,7 +117,17 @@ def reset_demo(session, state: Literal["fresh", "approved_baseline"] = "fresh") 
     )
     draft_ids = select(Draft.id).where(Draft.task_id == FIXTURE_TASK_ID)
     session.execute(delete(DraftRevision).where(DraftRevision.draft_id.in_(draft_ids)))
-    for model in (Clarification, Release, Draft, Evidence, ProcessingJob, MediaAsset):
+    for model in (
+        StudioAudit,
+        StudioAuthorization,
+        StudioEvaluation,
+        Clarification,
+        Release,
+        Draft,
+        Evidence,
+        ProcessingJob,
+        MediaAsset,
+    ):
         session.execute(delete(model).where(model.task_id == FIXTURE_TASK_ID))
     session.execute(delete(Task).where(Task.id == FIXTURE_TASK_ID))
     session.flush()
