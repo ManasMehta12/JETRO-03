@@ -224,9 +224,7 @@ def test_video_and_script_are_sent_outside_transactions_and_video_timestamps_sur
         assert match["type"] == "video_segment"
 
 
-def test_sdk_uploads_video_and_attaches_it_to_each_agent_call(
-    settings_factory, monkeypatch, tmp_path
-):
+def test_sdk_attaches_video_only_to_observation_call(settings_factory, monkeypatch, tmp_path):
     from google.genai import types
 
     agents = StudioAgents(settings_factory(gemini_api_key="test-key"))
@@ -246,9 +244,12 @@ def test_sdk_uploads_video_and_attaches_it_to_each_agent_call(
     )
 
     def generate(**kwargs):
-        assert kwargs["contents"][0].file_data.file_uri == uploaded.uri
-        assert kwargs["config"].response_json_schema
         properties = kwargs["config"].response_json_schema["properties"]
+        # Proposing agents must quote observed text, so only the observer sees the video.
+        if "observations" in properties:
+            assert kwargs["contents"][0].file_data.file_uri == uploaded.uri
+        else:
+            assert isinstance(kwargs["contents"], str)
         calls.append(set(properties))
         if "units" in properties:
             return SimpleNamespace(text='{"units": []}')
