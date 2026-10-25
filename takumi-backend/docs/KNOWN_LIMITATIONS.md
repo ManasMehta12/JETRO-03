@@ -1,7 +1,7 @@
 # Known limitations
 
 - `app/fixtures/shaft_bearing_v1.json` is illustrative hackathon content, not a validated mechanical procedure. Do not infer torque, tolerances, tactile claims or safe operating specifications from it.
-- Gemini video extraction, private media upload/streaming, durable `MediaAsset`/`ProcessingJob` tables and a separate worker are implemented. Successful live Gemini extraction is **unverified**: no real API key was available. Mocked tests do not establish model availability or extraction quality.
+- Gemini video extraction, private media upload/streaming, durable `MediaAsset`/`ProcessingJob` tables and a separate worker are implemented. Live extraction with `gemini-3.5-flash-lite` succeeded on a synthetic narrated clip only (see `V2_CHECKPOINTS.md`); real expert recordings and visual-only actions are unverified. The worker extraction call sets no `max_output_tokens`.
 - Run a single worker for this hackathon deployment. Durable leases recover interrupted jobs; this is not a validated multi-worker deployment.
 - Uploads accept only MP4 containers with h264/av1 video; QuickTime is rejected. Inspection checks ffprobe metadata, not a full video decode. `ffprobe` must be installed; generated-video tests also need `ffmpeg` and skip without either tool.
 - Gemini timestamps are approximate and are not checked against video frames. Invalid intervals retain draft units without evidence and produce warnings; publication requires supported expert corrections. AI output is always unreviewed.
@@ -20,7 +20,9 @@
 
 ## Integrated Studio diagnosis demo
 
-- Source-note diagnosis uses three bounded Gemini calls for extraction, patch proposal and source-consistency critique. `GEMINI_API_KEY` automatically enables live diagnosis independently of the legacy video worker flags. A real-key model call remains unverified until configured and rehearsed.
+- Source-note diagnosis uses three bounded Gemini calls for extraction, patch proposal and source-consistency critique. `GEMINI_API_KEY` automatically enables live diagnosis independently of the legacy video worker flags. Live course-video diagnosis with `gemini-3.5-flash-lite` (thinking `low`) was verified on a synthetic narrated clip.
+- Exact-quote checks are substring checks. A quote is extended back to an uncertainty qualifier (`usually`, `may`, `likely`, …) in the same sentence so "usually means X" cannot become "X"; other meaning changes from sub-quoting are not detected, and the AI critique is not a reliable guard. Expert review remains required.
+- Video observations vary between runs. Before the observation prompt required verbatim narration, one live run returned caption text only and its proposals failed as `AI_OUTPUT_UNSUPPORTED`, and another produced caption-only actions. Studio's first pass creates at most two units.
 - Without a key, live diagnosis is unavailable. An illustrative authored rehearsal must be explicitly selected; there is no automatic fixture fallback. Custom source notes require a key; a failed live run never silently replays fixtures. Only exact quoted source extracts become proposals, and human approval is always required to apply/publish.
 - Demo mode removes the separate admin grant. All public publication paths still require a current passing evaluation. Structural/source checks are not a mechanical safety certification.
 - The current UI consumes source notes, not a newly uploaded course video. Video connection and live spoken interviewing are deferred. The viva uses deterministic reviewed-content templates, and reflections are ungraded.

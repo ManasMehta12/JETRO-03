@@ -14,11 +14,11 @@ Observed checkpoint evidence is recorded below. Implementation is not proof of s
 ## Checkpoint C5
 
 - Commit: `9bd6d58` — `feat(backend): Gemini video extraction, durable processing jobs and worker (C5)`.
-- Gemini model actually used: **no model completed extraction**. `gemini-invalid` was used only for an intentionally invalid-key worker preflight.
-- SDK and API methods: installed `google-genai 2.33.0`; code uses `models.get`, `files.upload`, `files.get`, `models.generate_content` with `Part.from_uri` and Pydantic `response_schema`, then `files.delete`. This describes implemented calls, not a successful live extraction.
-- Provider availability: **unverified**. The invalid-key real network call failed with `PROCESSING_FAILED: AI provider request failed.`, exit 2, without echoing the key. It does not establish availability to a valid key/model.
+- Gemini model actually used: `gemini-3.5-flash-lite` (2026-10-25, real key). `gemini-invalid` was used earlier only for an intentionally invalid-key worker preflight.
+- SDK and API methods: installed `google-genai 2.33.0`; code uses `models.get`, `files.upload`, `files.get`, `models.generate_content` with `Part.from_uri` and Pydantic `response_schema`, then `files.delete`. These calls completed in the live run below.
+- Provider availability: verified for `gemini-3.5-flash-lite` with a real key. The earlier invalid-key call failed with `PROCESSING_FAILED: AI provider request failed.`, exit 2, without echoing the key.
 - Processing stages implemented: `uploaded` → `preparing_media` → `extracting` → `detecting_gaps` → `ready_for_review`; statuses `queued`, `running`, `completed`, `failed`.
-- Successful extraction evidence: mocked-provider tests cover draft/evidence/clarification persistence; **no successful live Gemini extraction evidence exists**. The opt-in live test was skipped because no key was available.
+- Successful extraction evidence: on a temporary database, the real worker path (`run_once` + `GeminiAIProvider`) processed a 25.8 s synthetic narrated MP4 (espeak-ng voice, captioned flat-colour frames, four inspection steps at known times) in 14.6 s, one attempt, no warnings. It produced 4 knowledge units with video evidence intervals within 0.7 s of the spoken segments and 3 clarification questions. Usage: 2,682 prompt tokens (2,363 video), 528 output tokens. Weakness: on-screen captions were copied into `cue`. Mocked-provider tests still cover draft/evidence/clarification persistence.
 - Retry and recovery results: passing mocked-provider suite covers retry, provider-file reuse, invalid-output retry-once, timeout exhaustion and lease recovery. No live-provider retry/recovery claim is made.
 - V1 integration results: passing suite includes fixture and mocked-extraction integration. Real-server fixture CLI/reset regression is reserved for final verification below.
 - Real-server smoke: existing v2 database at `/tmp/takumi_v2.db` upgraded in place; health reported schema version 3. New task/upload returned 201. Live processing with fixture provider returned 503 `AI_PROVIDER_UNAVAILABLE`, with required configuration list `[AI_PROVIDER=gemini, ENABLE_LIVE_EXTRACTION=true, GEMINI_API_KEY, GEMINI_MODEL]`. Demo processing returned 422 `FIXTURE_NOT_AVAILABLE`. Playback remained 200 after failed processing. Unknown job returned 404 `PROCESSING_JOB_NOT_FOUND`.
@@ -57,7 +57,7 @@ Observed checkpoint evidence is recorded below. Implementation is not proof of s
 
 ## Outstanding work
 
-- Successful live Gemini extraction requires an available real key, a video-capable model and a real recording; this remains unverified.
+- Live extraction is verified only on a synthetic narrated clip. Real expert recordings, visual-only actions and other models remain unverified. Saved job `usage` covers only the successful attempt; reconcile retries against provider billing.
 
 ## Final verification
 

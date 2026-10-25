@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import re
 from copy import deepcopy
 from datetime import UTC, datetime
 
@@ -140,6 +141,22 @@ def _store(factory, run_id, **fields):
         return output(run)
 
 
+# Qualifiers an exact sub-quote must not drop: "usually means X" is not "X".
+HEDGES = re.compile(
+    r"\b(usually|often|sometimes|typically|generally|may|might|could|possibly|probably"
+    r"|likely|perhaps|suggests?|indicates?|appears?|seems?)\b",
+    re.IGNORECASE,
+)
+
+
+def keep_hedge(quote, source):
+    """Extend a quote back to an uncertainty qualifier earlier in its sentence."""
+    start = source.find(quote)
+    sentence = max(source.rfind(mark, 0, start) for mark in ".!?\n") + 1
+    hedge = HEDGES.search(source, sentence, start)
+    return source[hedge.start() : start + len(quote)] if hedge else quote
+
+
 def validate_proposals(proposals, source, units):
     known = {unit["id"]: unit for unit in units}
     result, seen = [], set()
@@ -154,6 +171,7 @@ def validate_proposals(proposals, source, units):
             raise ProviderError(
                 "AI_OUTPUT_UNSUPPORTED", "AI patch is not an exact source extract.", False
             )
+        p["source_quote"] = p["after"] = keep_hedge(p["source_quote"], source)
         seen.add(key)
         before = known[key[0]].get(key[1])
         if before != p["after"]:

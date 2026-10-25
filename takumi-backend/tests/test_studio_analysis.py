@@ -276,6 +276,25 @@ def test_source_validation_rejects_unsupported_output():
         service.validate_proposals([p], service.demo_source()["source_notes"], [{"id": "ku_002"}])
 
 
+def test_exact_subquote_keeps_uncertainty_qualifier():
+    source = "If it feels gritty, stop. That usually means the seal or bearing is damaged."
+    p = {
+        "knowledge_unit_id": "ku_1",
+        "field": "interpretation",
+        "source_quote": "the seal or bearing is damaged",
+        "after": "the seal or bearing is damaged",
+        "rationale": "Stated cause.",
+    }
+    [kept] = service.validate_proposals([p], source, [{"id": "ku_1"}])
+    assert kept["after"] == kept["source_quote"] == "usually means the seal or bearing is damaged"
+    # Qualifiers in an earlier sentence do not leak into an unhedged claim.
+    p["source_quote"] = p["after"] = "stop"
+    [plain] = service.validate_proposals(
+        [p], "It may rattle. If it feels gritty, stop.", [{"id": "ku_1"}]
+    )
+    assert plain["after"] == "stop"
+
+
 def test_interrupted_run_recovery_and_duplicate_lock(make_client):
     from app.database import new_id
     from app.models.analysis import StudioAnalysisRun
