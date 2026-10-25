@@ -220,7 +220,7 @@ Process request (`POST /tasks/task_example/process`):
   "warnings": [],
   "provider": "gemini",
   "model_id": "<configured GEMINI_MODEL>",
-  "prompt_version": "video_extraction_v2",
+  "prompt_version": "video_extraction_v3",
   "created_at": "2026-10-24T00:00:00Z",
   "updated_at": "2026-10-24T00:00:00Z"
 }

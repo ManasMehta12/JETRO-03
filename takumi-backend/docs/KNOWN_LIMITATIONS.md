@@ -17,7 +17,7 @@
 - The integrated `/learning` routes handle current course progression, simulation replay, structured viva and learner reset. The older demo reset `scope: "attempts"` still returns `RESET_SCOPE_UNAVAILABLE`; use `/learning/reset`. A full fixture reset now clears learner tables and AI diagnosis runs as well.
 - Exported API examples contain real run IDs and timestamps, so regeneration changes those values. Auth tokens are redacted. Some of the 16 acceptance steps assert the preceding response rather than sending a new request; their example files repeat that request/response.
 - Current FastAPI/Starlette emits a TestClient deprecation warning for httpx. Tests still pass; dependency modernization is outside this checkpoint.
-- Model timestamps accept integer coercion from strings (for example, `"100"` → `100`); strict integer-only input is not enforced.
+- Gemini video extraction returns `MM:SS` strings that code converts to milliseconds; one full-clip run was correct, so timestamp accuracy is promising, not validated. Transcript providers (Ollama, OpenRouter) still accept integer coercion from strings (for example, `"100"` → `100`).
 - The `admin` role may upload media.
 - Experts may publish from Studio; publication is not reviewer-only.
 - A missing Gemini key fails at request time rather than startup.
