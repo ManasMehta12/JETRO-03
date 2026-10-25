@@ -29,7 +29,9 @@ class OpenRouterVideoExtractor(OllamaVideoExtractor):
 
     def __init__(self, settings):
         self.provider = "openrouter"
-        self.model_id = settings.openrouter_model
+        # Comma-separated priority list; OpenRouter tries the next model when one errors.
+        self._models = [m.strip() for m in settings.openrouter_model.split(",") if m.strip()]
+        self.model_id = self._models[0]
         self._dir = Path(settings.media_storage_dir)
         self._timeout = settings.processing_provider_timeout_seconds
         self._http = httpx.Client(
@@ -41,8 +43,8 @@ class OpenRouterVideoExtractor(OllamaVideoExtractor):
 
     def check_model(self) -> None:
         try:
-            response = self._http.get(f"/models/{self.model_id}")
-            response.raise_for_status()
+            for model in self._models:
+                self._http.get(f"/models/{model}/endpoints").raise_for_status()
             self._stt.get("/")
         except Exception as exc:
             raise _openrouter_error(exc) from None
@@ -58,7 +60,9 @@ class OpenRouterVideoExtractor(OllamaVideoExtractor):
             response = self._http.post(
                 "/chat/completions",
                 json={
-                    "model": self.model_id,
+                    "models": self._models,
+                    # Route only to providers that honor the strict JSON schema.
+                    "provider": {"require_parameters": True},
                     "messages": [
                         {
                             "role": "user",
@@ -98,7 +102,7 @@ class OpenRouterVideoExtractor(OllamaVideoExtractor):
             return VideoExtraction(
                 result=result,
                 usage=usage or None,
-                model_id=self.model_id,
+                model_id=body.get("model") or self.model_id,
                 prompt_version=PROMPT_VERSION,
             )
         except Exception as exc:

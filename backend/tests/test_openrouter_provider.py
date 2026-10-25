@@ -16,7 +16,7 @@ def setup_provider(settings_factory, tmp_path):
         settings = settings_factory(
             ai_provider="openrouter",
             openrouter_api_key="test-key",
-            openrouter_model="provider/model",
+            openrouter_model="provider/model, backup/model:free",
             whisper_base_url="http://whisper.test",
             media_storage_dir=tmp_path,
         )
@@ -62,7 +62,8 @@ def test_openrouter_structured_extraction(setup_provider, tmp_path):
         assert request.headers["Authorization"] == "Bearer test-key"
         assert request.url.path == "/api/v1/chat/completions"
         body = json.loads(request.content)
-        assert body["model"] == "provider/model"
+        assert body["models"] == ["provider/model", "backup/model:free"]
+        assert body["provider"] == {"require_parameters": True}
         assert body["temperature"] == 0
         assert body["response_format"]["type"] == "json_schema"
         assert body["response_format"]["json_schema"]["strict"] is True
@@ -72,6 +73,7 @@ def test_openrouter_structured_extraction(setup_provider, tmp_path):
         return httpx.Response(
             200,
             json={
+                "model": "backup/model:free",
                 "choices": [
                     {
                         "message": {
@@ -116,7 +118,7 @@ def test_openrouter_structured_extraction(setup_provider, tmp_path):
     assert extracted.result.steps[0].source_modality == "spoken"
     assert extracted.result.detected_language == "english"
     assert extracted.usage == {"prompt_tokens": 100, "completion_tokens": 30, "total_tokens": 130}
-    assert extracted.model_id == "provider/model"
+    assert extracted.model_id == "backup/model:free"
     assert extracted.prompt_version == PROMPT_VERSION
 
 

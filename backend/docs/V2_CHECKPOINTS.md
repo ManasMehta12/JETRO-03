@@ -94,4 +94,4 @@ This text-only provider captures narration, not visual-only knowledge. Job prove
 
 ## OpenRouter transcript extraction
 
-OpenRouter replaces only Ollama's text extraction request. ffmpeg and whisper.cpp still produce a timestamped transcript locally; only that transcript is sent to the selected OpenRouter model using strict JSON-schema output. `OPENROUTER_MODEL` is pinned in each job's provenance. Model capability, schema compatibility, cost and extraction quality require a real-key run and are not yet verified.
+OpenRouter replaces only Ollama's text extraction request. ffmpeg and whisper.cpp still produce a timestamped transcript locally; only that transcript is sent to OpenRouter using strict JSON-schema output with `provider.require_parameters=true`. `OPENROUTER_MODEL` is a comma-separated fallback list sent as `models`; each job records the model that answered. Model capability, schema compatibility and extraction quality require a real-key run and are not yet verified.

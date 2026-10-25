@@ -130,7 +130,7 @@ This option keeps the existing local whisper.cpp transcription stage and sends o
 ```dotenv
 AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=provider/model
+OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free,xingchen-agi/xing4.0-29b-a4b:free,openrouter/free
 WHISPER_BASE_URL=http://192.168.1.42:8080
 ENABLE_MEDIA_UPLOAD=true
 ENABLE_MEDIA_STREAMING=true
@@ -140,7 +140,7 @@ ENABLE_PROCESSING_WORKER=true
 PROCESSING_PROVIDER_TIMEOUT_SECONDS=300
 PROCESSING_JOB_LEASE_SECONDS=360
 ```
-Choose a model that supports strict JSON-schema structured output. The worker validates output against the application schema; unsupported model/schema combinations fail as retryable invalid output. OpenRouter receives the transcript (including technical discussion), not the original video/audio. Transcription remains on the trusted LAN. Set `OPENROUTER_MODEL` to a fixed model ID so job provenance and comparisons remain reproducible. Provider/model availability and extraction quality must be verified with the selected key and model.
+`OPENROUTER_MODEL` is a comma-separated fallback list sent as OpenRouter's `models` array: when a model errors (downtime, rate limit), OpenRouter tries the next one. Requests set `provider.require_parameters=true`, so they route only to providers that honor the strict JSON schema. The default list uses free models that advertise structured outputs; keep it `:free`-only (plus `openrouter/free`) to avoid charges. Free models are rate-limited (about 50 requests/day without purchased credits). Output still validates against the application schema; invalid output fails as retryable `AI_RESPONSE_INVALID`. The job's `model_id` records the model that actually answered. OpenRouter receives the transcript, not the original video/audio; transcription stays on the trusted LAN. Real-key availability and extraction quality are unverified.
 
 ## Verification status
 C4 gates: 113 tests passed; real-server upload and range smoke passed.

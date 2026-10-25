@@ -120,7 +120,7 @@ Process request (`POST /tasks/task_example/process`):
 }
 ```
 With Ollama, `provider` is `"ollama"`, `model_id` is the configured `OLLAMA_MODEL`, and `prompt_version` is `"transcript_extraction_v1"`. Only narration supports extraction; visual-only knowledge is not captured. Steps use `source_modality="spoken"` and detected language uses whisper's language name (for example, `english`).
-With OpenRouter, `provider` is `"openrouter"`, `model_id` is the configured `OPENROUTER_MODEL`, and extraction uses the same transcript prompt and local whisper.cpp stage. Only the transcript is sent to OpenRouter; the recording itself stays on the backend/LAN.
+With OpenRouter, `provider` is `"openrouter"`, `model_id` is the model that answered (from the `OPENROUTER_MODEL` fallback list), and extraction uses the same transcript prompt and local whisper.cpp stage. Only the transcript is sent to OpenRouter; the recording itself stays on the backend/LAN.
 
 States: `queued` → `running` → `completed`/`failed`; retryable failures return to `queued`.
 Stages: `uploaded` → `preparing_media` → `extracting` → `detecting_gaps` → `ready_for_review`.
