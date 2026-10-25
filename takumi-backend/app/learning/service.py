@@ -9,7 +9,27 @@ from app.database import new_id, utcnow
 from app.learning.interview_script import build_script
 from app.learning.models import Enrollment, ManualCompletion
 from app.learning.replay import replay
-from app.models.entities import Release, Task
+from app.models.entities import MediaAsset, Release, Task
+
+
+def course_video(session):
+    return session.scalar(
+        select(MediaAsset)
+        .where(MediaAsset.task_id == "task_001")
+        .order_by(MediaAsset.created_at.desc(), MediaAsset.id.desc())
+    )
+
+
+def video_settings(session, settings):
+    video = course_video(session) if settings.enable_media_streaming else None
+    if video is None:
+        return settings
+    return settings.model_copy(
+        update={
+            "course_video_url": f"/api/v1/media/{video.id}/stream",
+            "course_video_duration_seconds": video.duration_ms / 1000,
+        }
+    )
 
 
 def active_release(session):

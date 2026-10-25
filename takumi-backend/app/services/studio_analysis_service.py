@@ -25,8 +25,6 @@ from app.services import (
 
 logger = logging.getLogger(__name__)
 
-logger = logging.getLogger(__name__)
-
 
 def demo_source():
     return json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))["studio_analysis"]
@@ -77,6 +75,7 @@ def configuration(settings, session=None, task_id=None):
             {"stage": "analyzing_video", "label": "Read uploaded video (when attached)"},
             {"stage": "extracting", "label": "Extract source facts"},
             {"stage": "proposing", "label": "Propose tacit patches"},
+            {"stage": "diagnosing_gaps", "label": "Identify nuances and missing explanations"},
             {"stage": "evaluating", "label": "Evaluate source support"},
         ],
         "notice": (
@@ -226,6 +225,55 @@ def initial_proposals(extraction):
     return units, candidates
 
 
+def prepare_gaps(gaps, source, units, candidates):
+    """Only source extracts can become fixes; unanswered reasoning stays a question."""
+    known = {unit["id"] for unit in units}
+    fields = {(p["knowledge_unit_id"], p["field"]): p for p in candidates}
+    result, seen = [], set()
+    for gap in gaps:
+        gap = dict(gap)
+        key = (gap["knowledge_unit_id"], gap["field"])
+        if key[0] not in known or key in seen or gap["source_quote"] not in source:
+            raise ProviderError("AI_OUTPUT_UNSUPPORTED", "Gap has no unique source anchor.", False)
+        anchor = keep_hedge(gap["source_quote"], source)
+        if anchor is None:
+            continue
+        gap["source_quote"] = anchor
+        fix = gap.get("suggested_fix")
+        if fix:
+            if fix not in source:
+                raise ProviderError(
+                    "AI_OUTPUT_UNSUPPORTED", "Suggested gap fix is not a source extract.", False
+                )
+            fix = keep_hedge(fix, source)
+        gap["suggested_fix"] = fix
+        if fix and key not in fields:
+            candidate = {
+                "knowledge_unit_id": key[0],
+                "field": key[1],
+                "after": fix,
+                "source_quote": fix,
+                "rationale": gap["missing_explanation"],
+            }
+            candidates.append(candidate)
+            fields[key] = candidate
+        seen.add(key)
+        result.append({**gap, "id": new_id("gap")})
+    return result
+
+
+def link_video(quote, observations, media):
+    for observation in observations:
+        if quote in observation["observation"]:
+            return {
+                "media_id": media.id,
+                "start_ms": observation["start_ms"],
+                "end_ms": observation["end_ms"],
+                "modality": observation["modality"],
+            }
+    return None
+
+
 def analyze(factory, settings, task_id, req, user):
     config = configuration(settings)
     if not config["enabled"]:
@@ -298,6 +346,7 @@ def analyze(factory, settings, task_id, req, user):
     try:
         initial = not units or course_mode
         observations = []
+        gaps = []
         if mode == "live":
             agents = StudioAgents(settings)
             if media is not None:
@@ -328,10 +377,17 @@ def analyze(factory, settings, task_id, req, user):
                     stage="extracting",
                 )
             if initial:
-                units, candidates = initial_proposals(agents.initial(source))
+                extraction = agents.initial(source)
+                units, candidates = initial_proposals(extraction)
+                gaps = [
+                    {**gap.model_dump(), "knowledge_unit_id": unit["id"]}
+                    for extracted, unit in zip(extraction.units, units, strict=True)
+                    for gap in extracted.gaps
+                ]
                 _store(factory, run_id, stage="proposing")
             else:
                 findings = agents.extract(source, units)
+                gaps = [gap.model_dump() for gap in findings.gaps]
                 _store(factory, run_id, stage="proposing")
                 candidates = agents.patch(source, units, findings).model_dump()["proposals"]
         else:
@@ -343,20 +399,38 @@ def analyze(factory, settings, task_id, req, user):
                 )
             _store(factory, run_id, stage="proposing")
             candidates = demo_source()["proposals"]
+        _store(factory, run_id, stage="diagnosing_gaps")
+        gaps = prepare_gaps(gaps, source, units, candidates)
         proposals = validate_proposals(candidates, source, units)
         if initial:
             actionable_units = {p["knowledge_unit_id"] for p in proposals if p["field"] == "action"}
             proposals = [p for p in proposals if p["knowledge_unit_id"] in actionable_units]
         for proposal in proposals:
-            for observation in observations:
-                if proposal["source_quote"] in observation["observation"]:
-                    proposal["video_evidence"] = {
-                        "media_id": media.id,
-                        "start_ms": observation["start_ms"],
-                        "end_ms": observation["end_ms"],
-                        "modality": observation["modality"],
-                    }
-                    break
+            evidence = link_video(proposal["source_quote"], observations, media)
+            if evidence:
+                proposal["video_evidence"] = evidence
+        for gap in gaps:
+            gap["proposal_id"] = next(
+                (
+                    p["id"]
+                    for p in proposals
+                    if p["knowledge_unit_id"] == gap["knowledge_unit_id"]
+                    and p["field"] == gap["field"]
+                    and p["after"] == gap["suggested_fix"]
+                ),
+                None,
+            )
+            unit = next(u for u in units if u["id"] == gap["knowledge_unit_id"])
+            gap["status"] = (
+                "suggested_fix"
+                if gap["proposal_id"]
+                else (
+                    "already_covered"
+                    if gap["suggested_fix"] == unit.get(gap["field"]) and gap["suggested_fix"]
+                    else "expert_required"
+                )
+            )
+            gap["video_evidence"] = link_video(gap["source_quote"], observations, media)
         _store(factory, run_id, stage="evaluating", proposals=proposals)
         if not proposals:
             evaluation = {
@@ -374,6 +448,8 @@ def analyze(factory, settings, task_id, req, user):
             }
         evaluation["scope"] = "Source consistency only; human technical review required."
         evaluation["initial_extraction"] = initial
+        evaluation["learning_gaps"] = gaps
+        evaluation["video_observations"] = observations
         if manifest:
             evaluation["source_manifest"] = manifest
             evaluation["replace_draft"] = True
@@ -478,6 +554,34 @@ def apply_reviewed(session, task_id, run_id, req, user):
         session, draft, draft.revision, list(by_id.values()), user.id, f"reviewed_analysis:{run.id}"
     )
     session.expire(draft)
+    selected_units = {
+        proposals[proposal_id]["knowledge_unit_id"] for proposal_id in req.proposal_ids
+    }
+    for gap in run.evaluation.get("learning_gaps", []):
+        if gap["status"] != "expert_required" or gap["knowledge_unit_id"] not in selected_units:
+            continue
+        unit = by_id[gap["knowledge_unit_id"]]
+        existing = session.scalar(
+            select(Clarification).where(
+                Clarification.draft_id == draft.id,
+                Clarification.knowledge_unit_id == unit["id"],
+                Clarification.question == gap["expert_question"],
+                Clarification.status == "pending",
+            )
+        )
+        if existing:
+            continue
+        clarification = Clarification(
+            id=new_id("cl"),
+            task_id=task_id,
+            knowledge_unit_id=unit["id"],
+            draft_id=draft.id,
+            gap_type="changed_condition" if gap["field"] == "exception" else "missing_reasoning",
+            priority=1,
+            question=gap["expert_question"],
+            status="pending",
+        )
+        session.add(clarification)
     if run.evaluation.get("replace_draft"):
         for clarification in session.scalars(
             select(Clarification).where(

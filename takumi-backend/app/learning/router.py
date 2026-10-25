@@ -1,10 +1,10 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
-from app.core.security import CurrentUser, require_roles
+from app.core.security import CurrentUser, issue_playback_token, require_roles
 from app.database import get_db
 from app.learning import service
 from app.learning.schemas import Answer, Completion, Heartbeat, Playground
@@ -12,12 +12,25 @@ from app.learning.schemas import Answer, Completion, Heartbeat, Playground
 router = APIRouter(prefix="/learning", tags=["learning"])
 DB = Annotated[Session, Depends(get_db)]
 User = Annotated[CurrentUser, Depends(require_roles("apprentice"))]
-Config = Annotated[Settings, Depends(get_settings)]
+
+
+def get_course_settings(session: DB, settings: Annotated[Settings, Depends(get_settings)]):
+    with session.begin():
+        return service.video_settings(session, settings)
+
+
+Config = Annotated[Settings, Depends(get_course_settings)]
 
 
 @router.get("/course")
-def get_course(session: DB, user: User, settings: Config):
-    return service.course(session, settings)
+def get_course(request: Request, session: DB, user: User, settings: Config):
+    result = service.course(session, settings)
+    if settings.enable_media_streaming:
+        video = service.course_video(session)
+        if video is not None:
+            token, _ = issue_playback_token(video.id, user, request.app.state.signing_key)
+            result["video_url"] = f"/api/v1/media/{video.id}/stream?token={token}"
+    return result
 
 
 @router.get("/progress")

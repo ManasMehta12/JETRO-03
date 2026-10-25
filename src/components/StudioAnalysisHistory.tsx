@@ -1,3 +1,4 @@
+import StudioLearningGaps from './StudioLearningGaps';
 import type { AnalysisRun } from '../studio-api';
 
 export default function StudioAnalysisHistory({ runs }: { runs: AnalysisRun[] }) {
@@ -10,6 +11,7 @@ export default function StudioAnalysisHistory({ runs }: { runs: AnalysisRun[] })
       {run.evaluation?.source_manifest && <div><strong>Course inputs</strong><p>Video: {run.evaluation.source_manifest.video?.filename ?? 'None'}<br/>Script: {run.evaluation.source_manifest.script_filename || 'None'}<br/>Expert review notes: {run.evaluation.source_manifest.include_review_notes ? 'Included' : 'Excluded'}</p></div>}
       {run.error && <p role="status">{run.error.code}: {run.error.message}</p>}
       {run.evaluation && <div><strong>{run.evaluation.passed ? 'Source evaluation passed' : 'Source evaluation needs attention'}</strong><p>{run.evaluation.summary}</p>{run.evaluation.issues.map((issue, index) => <p key={index}>{issue}</p>)}</div>}
+      <StudioLearningGaps run={run}/>
       <details><summary>Analyzed source material</summary><pre>{run.source_notes}</pre></details>
       {run.proposals.map(proposal => <article className="studio-history-proposal" key={proposal.id}>
         <strong>{proposal.knowledge_unit_id} · {proposal.field}</strong>
