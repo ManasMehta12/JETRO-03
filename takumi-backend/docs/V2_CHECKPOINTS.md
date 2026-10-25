@@ -122,6 +122,8 @@ OpenRouter replaces only Ollama's text extraction request. ffmpeg and whisper.cp
 - Studio evaluation failed as designed with `UNSUPPORTED_FIELD:action|cue|interpretation` on `ku_288214e78eef`. `scripts/video_flow.py` stopped with exit 1: `Evaluation failed: review flagged units before publishing`. This was the intended review gate: AI output never publishes without human review.
 - The reviewer rejected that unit through `PATCH /tasks/{id}/draft` with `operation: reject`, advancing revision 2→3. Re-evaluation passed with no issues. The remaining steps were then run manually with the same requests the script uses; this was not an uninterrupted successful script run.
 - Reviewer publication returned 201: `release_17de35601648`, version 1, active, with 5 units. Its training pack includes `ev_ba54f3c8f837`.
+- Second live run (same clip, same script, job `job_e66d4e166a64`): 22 s, 5 units, 4 with evidence. The model returned 298000–321000 ms for step 5 (`ku_644e03fbd5ed`, sketching damage), beyond the media end, so evaluation failed with `UNSUPPORTED_FIELD:action` and the script exited 1 again. Usage: prompt 20 612, output 617, total 21 229 (≈ ₹0.74).
+- The script's success path (lines after evaluation: reviewer publish, release, training pack, supported and unsupported questions) was exercised end to end in-process with the test `FakeExtractor` on a synthetic 3 s clip: it printed `release_id=release_7102621cfff5` and `acceptance=ok`. No live run printed `acceptance=ok`: in both live runs Gemini produced one interval past the media end, and the review gate correctly blocked publication.
 
 ### Apprentice Q&A
 
@@ -135,4 +137,4 @@ OpenRouter replaces only Ollama's text extraction request. ffmpeg and whisper.cp
 - Estimated cost: ≈ $0.0085 ≈ ₹0.80, using $0.30 per 1M input tokens, $2.50 per 1M output tokens and ₹95/USD.
 - Part F used the fixture provider on fresh database `/tmp/takumi_partf.db`. `scripts/demo_flow.py` completed `OK 1`–`OK 16`.
 - `uv run pytest -q`: 321 passed, 1 skipped (live Gemini test). `uv run ruff check .` and `uv run ruff format --check .` were clean.
-- This final acceptance used one live run and one clip only, in addition to the earlier synthetic-clip run. Quality is promising, not validated beyond this limited evidence.
+- This final acceptance used two live runs on one clip, in addition to the earlier synthetic-clip run. Both live runs produced one out-of-range interval (1 of 5–6 steps). Quality is promising, not validated beyond this limited evidence.
