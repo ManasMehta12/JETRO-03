@@ -44,6 +44,91 @@ The curl snippets show request shapes, not extra executed checks. Use returned `
 
 ## Studio workflow
 
+### Expert panel extensions
+
+These Studio endpoints extend the canonical knowledge-engine contract. The Expert
+panel reads saved draft content and per-field evidence; illustrative fixture content
+is labelled with its source rather than presented as live extraction.
+
+`GET /studio/workspace` and `GET /studio/tasks/{task_id}` include
+`overview.analysis_runs` and `analysis_runs`, respectively. Each entry is a persisted
+diagnosis record with source notes, model, status, proposed field extracts, evaluation,
+error, actor and timestamps. Audit facts come from these records and workflow events.
+
+`POST /studio/tasks/{task_id}/analysis/{run_id}/apply` accepts
+`expected_revision`, `proposal_ids`, and `approval_note` (the expert's review note).
+Roles: expert, reviewer, admin. A passed, current run is required. Selected extracts
+are saved through the normal revision/evidence machinery and the run becomes
+`applied` / `saved_to_draft`. The active release is preserved. Notes-only patches
+preserve clarifications; course extraction replaces draft units and defers pending
+clarifications belonging to the replaced units, recording the expert's review note.
+The response contains `{run, draft}`. `defer_unanswered` must be false. Stale or
+non-reviewable runs return 409; invalid selections return 422. Saving records an
+`analysis_saved_to_draft` event with the selected IDs, new revision and review note.
+Evaluate and explicitly publish the revised draft through the normal workflow.
+
+`POST /studio/tasks/{task_id}/reset` is available to expert/admin when both
+`DEMO_MODE` and `ENABLE_DEMO_RESET` are true. Send `expected_revision` and
+`confirm: "RESET_EXPERT_DATA"`. It empties the task's draft, evidence, uploaded
+media/jobs, clarifications, diagnoses, evaluations, authorizations, releases and
+audit/revision history. Current learner enrollment/completions tied to deleted
+releases are cleared. Other tasks and AI settings are preserved. Stored media is
+removed after commit. The empty draft retains an incremented revision so old tabs
+cannot overwrite it, and startup does not restore fixture content. Running/queued
+processing or a running diagnosis returns 409 `RESET_BUSY`; a stale revision returns
+409 `REVISION_CONFLICT`. Configuration exposes `reset_enabled` for button visibility.
+
+After reset, live diagnosis can extract new knowledge units from expert source
+notes. Field values must be exact source extracts; unsupported optional fields
+stay unknown. Generated units remain proposals until explicitly saved or published.
+Every selected new unit must include its action. Illustrative rehearsal requires
+an existing draft and is unavailable for the empty workspace.
+
+### Uploaded course video, script, and expert review notes
+
+Schema 7 adds `studio_course_content` for the saved course script and expert notes.
+`PATCH /studio/tasks/{task_id}/course-content` (expert/admin) accepts
+`expected_version` and any of `script_text` (20,000 characters), `script_filename`,
+`review_notes` (10,000 characters). Omitted fields are preserved. A source-version
+conflict returns 409 `REVISION_CONFLICT`. Source saves record `course_sources_updated`
+events and never change the active release. Both Expert reset and fixture reset
+clear these saved inputs.
+
+Studio configuration includes `course_content`, `course_source_hashes`, and
+`media_upload_enabled`. The latest uploaded task media is selected automatically;
+only its metadata is exposed. The panel uploads MP4 through the existing media
+endpoint and accepts plain text scripts (`.txt`, `.md`, `.srt`, `.vtt`). The script
+is distinct from the generated apprentice interview script. A configured playback
+URL alone does not supply local source media; upload the MP4 to the course task.
+
+For diagnosis, send `use_course_content: true` and optionally
+`include_review_notes: false` (default true). The server resolves the uploaded video
+and saved script/notes, ignoring client `source_notes` in this mode. The provider
+uploads the actual stored video, waits for preparation, and attaches it to the
+observation, extraction, and independent evaluation calls. This follows Google's
+[video input API](https://ai.google.dev/api/generate-content). Provider uploads are
+removed after the run. All provider calls and local file access occur outside DB
+transactions.
+
+Video observations are unreviewed and timestamped. Out-of-range intervals and
+spoken claims for silent recordings are rejected. Structured tacit fields use exact
+quotes from the script, selected expert notes, or video observations. Unknown
+reasoning and tactile/measurement claims stay unknown. Video-supported proposals
+carry `video_evidence`; accepting them creates timed `video_segment` evidence.
+
+Course extraction proposes a replacement draft, never a silently published course.
+Review previews the newly extracted units before saving. Accepted new units must
+include their action; unrelated old unit clarifications are deferred with the
+reviewer's note. Evaluation includes `replace_draft` and `source_manifest` (source
+version/hash, video metadata, script filename, notes inclusion). Changed video,
+script, or review notes invalidate old proposals at both completion and approval.
+Audit shows the persisted input manifest and the actual analyzed source snapshot.
+
+Verification: provider transport and full source-to-draft behavior are covered by
+mocked-provider tests; browser tests exercise uploaded-source selection and note
+inclusion with mocked media/agent responses. A real uploaded-video Gemini run for
+this Studio workflow has not yet been verified.
+
 1. List/get tasks or create a task. Creation alone does not extract knowledge or create a draft; use the media workflow below for new recordings.
 2. Read seeded draft and pending clarifications. Draft fields include revision, evidence IDs and per-field evidence.
 3. PATCH content with `expected_revision`, or respond with `expected_draft_revision`. Null clears an optional content field to unknown; action cannot be null. Revision conflicts require a fresh read.

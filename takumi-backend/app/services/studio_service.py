@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.core.errors import AppError
 from app.core.security import DEMO_USERS
 from app.database import new_id
+from app.models.analysis import StudioAnalysisRun
 from app.models.entities import Clarification, DraftRevision, Evidence, Task
 from app.models.schemas import PublishRequest, TaskOut
 from app.models.studio import StudioAudit, StudioAuthorization, StudioEvaluation
@@ -296,6 +297,14 @@ def overview(session, task_id):
         else None,
         "authorization": authorization,
         "audit": events,
+        "analysis_runs": [
+            row_dict(run)
+            for run in session.scalars(
+                select(StudioAnalysisRun)
+                .where(StudioAnalysisRun.task_id == task_id)
+                .order_by(StudioAnalysisRun.created_at.desc(), StudioAnalysisRun.id.desc())
+            ).all()
+        ],
         "active_release": publication_service.release_out(session, active) if active else None,
         "evaluation_scope": (
             "Evidence coverage and release consistency checks. "

@@ -101,7 +101,14 @@ button:focus-visible, a:focus-visible, select:focus-visible {
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  text-decoration: none;
+}
+
+.brand-logo {
+  height: 35px;
+  width: auto;
+  display: block;
+  object-fit: contain;
 }
 
 .brand-symbol {

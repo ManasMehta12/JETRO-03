@@ -12,9 +12,17 @@ from app.ai.studio_analysis import StudioAgents
 from app.core.errors import AppError
 from app.database import new_id, utcnow
 from app.models.analysis import StudioAnalysisRun
-from app.models.entities import Clarification, Evidence, Task
+from app.models.entities import Clarification, Evidence, MediaAsset, Task
 from app.models.schemas import PublishRequest
-from app.services import knowledge_service, publication_service, studio_service
+from app.services import (
+    knowledge_service,
+    media_service,
+    publication_service,
+    studio_content_service,
+    studio_service,
+)
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -37,9 +45,24 @@ def configuration(settings, session=None, task_id=None):
     )
     return {
         "enabled": settings.enable_studio_ai_analysis,
+        "reset_enabled": settings.demo_mode and settings.enable_demo_reset,
+        "media_upload_enabled": settings.enable_media_upload,
+        "course_content": studio_content_service.content(session, task_id)
+        if task is not None
+        else None,
+        "course_source_hashes": {
+            "with_review_notes": studio_content_service.snapshot(session, task_id, True)[1][
+                "input_hash"
+            ],
+            "without_review_notes": studio_content_service.snapshot(session, task_id, False)[1][
+                "input_hash"
+            ],
+        }
+        if task is not None
+        else None,
         "mode": "live" if live else "unconfigured",
         "provider": "gemini",
-        "model": settings.gemini_model or settings.studio_ai_model,
+        "model": settings.studio_model,
         "source_notes": "\n\n".join(
             f"[{item.id}; {item.author_label}; {item.source_label}]\n{item.content}"
             for item in evidence
@@ -50,12 +73,14 @@ def configuration(settings, session=None, task_id=None):
         "rehearsal_available": settings.demo_mode,
         "rehearsal_source_notes": demo_source()["source_notes"] if settings.demo_mode else None,
         "agent_roles": [
+            {"stage": "analyzing_video", "label": "Read uploaded video (when attached)"},
             {"stage": "extracting", "label": "Extract source facts"},
             {"stage": "proposing", "label": "Propose tacit patches"},
             {"stage": "evaluating", "label": "Evaluate source support"},
         ],
         "notice": (
-            "Three live Gemini agents analyze source notes. Human approval is required."
+            "Live Gemini agents extract source-supported tacit knowledge. "
+            "Human approval is required."
             if live
             else "Live AI requires GEMINI_API_KEY in backend/.env and a backend restart. "
             "No AI results will be simulated automatically."
@@ -136,11 +161,43 @@ def validate_proposals(proposals, source, units):
     return result
 
 
+def empty_unit(unit_id):
+    return {
+        "id": unit_id,
+        **{field: None for field in publication_service.CONTENT_FIELDS},
+        "evidence_ids": [],
+        "field_evidence": {},
+        "review_status": "draft",
+    }
+
+
+def initial_proposals(extraction):
+    units, candidates = [], []
+    for extracted in extraction.units:
+        unit = empty_unit(new_id("ku"))
+        units.append(unit)
+        for field in publication_service.CONTENT_FIELDS:
+            value = getattr(extracted, field)
+            if value is not None:
+                candidates.append(
+                    {
+                        "knowledge_unit_id": unit["id"],
+                        "field": field,
+                        "after": value,
+                        "source_quote": value,
+                        "rationale": extracted.rationale,
+                    }
+                )
+    return units, candidates
+
+
 def analyze(factory, settings, task_id, req, user):
     config = configuration(settings)
     if not config["enabled"]:
         raise AppError("FEATURE_DISABLED", "Studio AI diagnosis is disabled.", 501)
     mode = req.mode
+    course_mode = req.use_course_content and mode == "live"
+    manifest, media = None, None
     if mode == "live" and config["mode"] != "live":
         raise AppError("AI_KEY_REQUIRED", "Configure GEMINI_API_KEY to run live AI diagnosis.", 409)
     if mode == "rehearsal" and not settings.demo_mode:
@@ -153,6 +210,16 @@ def analyze(factory, settings, task_id, req, user):
         task = session.get(Task, task_id)
         config = configuration(settings, session, task_id)
         source = req.source_notes if req.source_notes is not None else config["source_notes"]
+        if course_mode:
+            if not config["course_content"]["available"]:
+                raise AppError(
+                    "SOURCE_REQUIRED", "Upload a course video or save its script first.", 422
+                )
+            source, manifest = studio_content_service.snapshot(
+                session, task_id, req.include_review_notes
+            )
+            if manifest["video"]:
+                media = session.get(MediaAsset, manifest["video"]["id"])
         if mode == "rehearsal" and source != demo_source()["source_notes"]:
             raise AppError(
                 "REHEARSAL_SOURCE_REQUIRED", "Load the illustrative source to run rehearsal.", 409
@@ -175,6 +242,8 @@ def analyze(factory, settings, task_id, req, user):
             source_notes=source,
             source_label="illustrative"
             if mode == "rehearsal" or source == demo_source()["source_notes"]
+            else "real"
+            if course_mode
             else task.source_label,
             mode=mode,
             model=config["model"] if mode == "live" else "illustrative-v1",
@@ -190,16 +259,66 @@ def analyze(factory, settings, task_id, req, user):
             session, task_id, user, "analysis_started", run_id=run_id, mode=run.mode
         )
     # Provider calls happen between short, closed database sessions.
+    agents = None
     try:
+        initial = not units or course_mode
+        observations = []
         if mode == "live":
             agents = StudioAgents(settings)
-            findings = agents.extract(source, units)
-            _store(factory, run_id, stage="proposing")
-            candidates = agents.patch(source, units, findings).model_dump()["proposals"]
+            if media is not None:
+                _store(factory, run_id, stage="analyzing_video")
+                path = media_service.media_path(settings, media)
+                observed = agents.video_observations(path, media, source)
+                for item in observed.observations:
+                    if not 0 <= item.start_ms < item.end_ms <= media.duration_ms:
+                        raise ProviderError(
+                            "AI_OUTPUT_INVALID", "Video evidence has invalid timestamps.", False
+                        )
+                    if not media.audio_codec and item.modality != "visual":
+                        raise ProviderError(
+                            "AI_OUTPUT_UNSUPPORTED",
+                            "Silent video cannot support spoken evidence.",
+                            False,
+                        )
+                    observations.append(item.model_dump())
+                    source += (
+                        f"\n[Video {media.id}; {item.start_ms}-{item.end_ms} ms; "
+                        f"{item.modality}; AI observation, unreviewed]\n{item.observation}\n"
+                    )
+                _store(
+                    factory,
+                    run_id,
+                    source_notes=source,
+                    source_hash=hashlib.sha256(source.encode()).hexdigest(),
+                    stage="extracting",
+                )
+            if initial:
+                units, candidates = initial_proposals(agents.initial(source))
+                _store(factory, run_id, stage="proposing")
+            else:
+                findings = agents.extract(source, units)
+                _store(factory, run_id, stage="proposing")
+                candidates = agents.patch(source, units, findings).model_dump()["proposals"]
         else:
+            if initial:
+                raise AppError(
+                    "REHEARSAL_DRAFT_REQUIRED",
+                    "An empty workspace requires live AI and expert source notes to create units.",
+                    409,
+                )
             _store(factory, run_id, stage="proposing")
             candidates = demo_source()["proposals"]
         proposals = validate_proposals(candidates, source, units)
+        for proposal in proposals:
+            for observation in observations:
+                if proposal["source_quote"] in observation["observation"]:
+                    proposal["video_evidence"] = {
+                        "media_id": media.id,
+                        "start_ms": observation["start_ms"],
+                        "end_ms": observation["end_ms"],
+                        "modality": observation["modality"],
+                    }
+                    break
         _store(factory, run_id, stage="evaluating", proposals=proposals)
         if not proposals:
             evaluation = {
@@ -216,7 +335,13 @@ def analyze(factory, settings, task_id, req, user):
                 "summary": "Authored rehearsal: source checks passed. Expert review required.",
             }
         evaluation["scope"] = "Source consistency only; human technical review required."
+        evaluation["initial_extraction"] = initial
+        if manifest:
+            evaluation["source_manifest"] = manifest
+            evaluation["replace_draft"] = True
         with factory() as session, session.begin():
+            if manifest:
+                studio_content_service.check_snapshot(session, task_id, manifest)
             draft = knowledge_service.get_draft(session, task_id)
             knowledge_service.check_revision(session, draft, req.expected_revision)
             evaluation["unresolved_clarifications"] = [
@@ -243,13 +368,13 @@ def analyze(factory, settings, task_id, req, user):
             stage="failed",
             error={"code": code, "message": message},
         )
+    finally:
+        if agents is not None and hasattr(agents, "close"):
+            agents.close()
 
 
-def approve_publish(session, task_id, run_id, req, user, settings):
+def apply_reviewed(session, task_id, run_id, req, user):
     run = get_run(session, task_id, run_id)
-    if run.status == "published":
-        release = publication_service.get_release(session, run.release_id)
-        return {"run": output(run), "release": publication_service.release_out(session, release)}
     if run.status != "ready" or not run.evaluation or not run.evaluation.get("passed"):
         raise AppError(
             "ANALYSIS_NOT_APPROVABLE",
@@ -262,6 +387,8 @@ def approve_publish(session, task_id, run_id, req, user, settings):
         raise AppError(
             "ANALYSIS_STALE", "The draft changed. Run diagnosis again before approval.", 409
         )
+    if run.evaluation.get("source_manifest"):
+        studio_content_service.check_snapshot(session, task_id, run.evaluation["source_manifest"])
     proposals = {p["id"]: p for p in run.proposals}
     if (
         not req.proposal_ids
@@ -273,6 +400,20 @@ def approve_publish(session, task_id, run_id, req, user, settings):
         )
     units = deepcopy(draft.knowledge_units)
     by_id = {u["id"]: u for u in units}
+    if run.evaluation.get("replace_draft"):
+        by_id = {}
+    if (not units or run.evaluation.get("replace_draft")) and run.evaluation.get(
+        "initial_extraction"
+    ):
+        chosen = [proposals[proposal_id] for proposal_id in req.proposal_ids]
+        for unit_id in {proposal["knowledge_unit_id"] for proposal in chosen}:
+            if not any(
+                p["knowledge_unit_id"] == unit_id and p["field"] == "action" for p in chosen
+            ):
+                raise AppError(
+                    "INVALID_PROPOSALS", "Select the extracted action for every new unit.", 422
+                )
+            by_id[unit_id] = empty_unit(unit_id)
     for proposal_id in req.proposal_ids:
         p = proposals[proposal_id]
         unit = by_id[p["knowledge_unit_id"]]
@@ -281,11 +422,14 @@ def approve_publish(session, task_id, run_id, req, user, settings):
         evidence = Evidence(
             id=new_id("ev"),
             task_id=task_id,
-            type="reviewer_correction",
+            type="video_segment" if p.get("video_evidence") else "reviewer_correction",
             author_id=user.id,
             author_label=user.display_name,
             source_label=run.source_label,
             content=f"Human-reviewed source extract ({run.id}): {p['source_quote']}",
+            media_id=p.get("video_evidence", {}).get("media_id"),
+            start_ms=p.get("video_evidence", {}).get("start_ms"),
+            end_ms=p.get("video_evidence", {}).get("end_ms"),
         )
         session.add(evidence)
         by_id[unit["id"]] = knowledge_service.apply_field_updates(
@@ -295,6 +439,46 @@ def approve_publish(session, task_id, run_id, req, user, settings):
         session, draft, draft.revision, list(by_id.values()), user.id, f"reviewed_analysis:{run.id}"
     )
     session.expire(draft)
+    if run.evaluation.get("replace_draft"):
+        for clarification in session.scalars(
+            select(Clarification).where(
+                Clarification.task_id == task_id, Clarification.status == "pending"
+            )
+        ).all():
+            if clarification.knowledge_unit_id not in by_id:
+                clarification.status = "deferred"
+                clarification.answer = (
+                    "Draft replaced with reviewed course extraction. " + req.approval_note
+                )
+                clarification.answered_by, clarification.answered_at = user.id, utcnow()
+        session.flush()
+    return run
+
+
+def save_reviewed(session, task_id, run_id, req, user):
+    run = apply_reviewed(session, task_id, run_id, req, user)
+    run.status, run.stage = "applied", "saved_to_draft"
+    run.updated_at = utcnow()
+    studio_service.audit(
+        session,
+        task_id,
+        user,
+        "analysis_saved_to_draft",
+        run_id=run.id,
+        proposal_ids=req.proposal_ids,
+        revision=req.expected_revision + 1,
+        review_note=req.approval_note,
+    )
+    session.flush()
+    return {"run": output(run), "draft": knowledge_service.read_draft(session, task_id)}
+
+
+def approve_publish(session, task_id, run_id, req, user, settings):
+    run = get_run(session, task_id, run_id)
+    if run.status == "published":
+        release = publication_service.get_release(session, run.release_id)
+        return {"run": output(run), "release": publication_service.release_out(session, release)}
+    run = apply_reviewed(session, task_id, run_id, req, user)
     if req.defer_unanswered:
         for clarification in session.scalars(
             select(Clarification).where(

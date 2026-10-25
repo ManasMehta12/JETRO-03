@@ -6,6 +6,26 @@ from tests.conftest import auth
 BASE = "/api/v1/studio/tasks/task_001/analysis"
 
 
+def test_studio_model_override_is_used_by_provider_and_configuration(settings_factory):
+    from app.ai.studio_analysis import StudioAgents
+
+    settings = settings_factory(
+        gemini_api_key="test-key",
+        gemini_model="video-model",
+        studio_ai_model="studio-model",
+    )
+    agents = StudioAgents(settings)
+    try:
+        assert agents.model == service.configuration(settings)["model"] == "studio-model"
+    finally:
+        agents.client.close()
+
+
+def test_studio_model_falls_back_to_general_model_then_default(settings_factory):
+    assert settings_factory(gemini_model="video-model").studio_model == "video-model"
+    assert settings_factory().studio_model == "gemini-flash-latest"
+
+
 def test_provider_uses_json_schema_transport_for_strict_outputs(settings_factory, monkeypatch):
     from types import SimpleNamespace
 
@@ -309,3 +329,83 @@ def test_ai_critique_failure_cannot_publish(make_client, monkeypatch):
         response = approve(client, headers, run, defer_unanswered=True)
         assert response.status_code == 409
         assert response.json()["error"]["code"] == "ANALYSIS_NOT_APPROVABLE"
+
+
+def test_reviewed_extracts_replace_draft_fields_with_source_evidence_without_publishing(
+    make_client,
+):
+    with make_client(demo_seed_state="approved_baseline") as client:
+        headers = auth(client, "expert")
+        before = client.get("/api/v1/studio/workspace", headers=headers).json()["overview"]
+        run = diagnose(client, headers).json()
+        proposal = run["proposals"][0]
+        req = {
+            "expected_revision": run["revision"],
+            "proposal_ids": [proposal["id"]],
+            "approval_note": "Checked extracted wording against the recorded source.",
+        }
+        response = client.post(f"{BASE}/{run['id']}/apply", headers=headers, json=req)
+        assert response.status_code == 200, response.text
+        assert response.json()["run"]["status"] == "applied"
+        after = client.get("/api/v1/studio/workspace", headers=headers).json()["overview"]
+        assert after["draft"]["revision"] == before["draft"]["revision"] + 1
+        assert after["active_release"] == before["active_release"]
+        assert after["draft"]["clarifications"] == before["draft"]["clarifications"]
+        unit = next(
+            unit
+            for unit in after["draft"]["knowledge_units"]
+            if unit["id"] == proposal["knowledge_unit_id"]
+        )
+        assert unit[proposal["field"]] == proposal["after"]
+        sources = [
+            e for e in after["evidence"] if e["id"] in unit["field_evidence"][proposal["field"]]
+        ]
+        assert any(
+            run["id"] in (e["content"] or "") and proposal["source_quote"] in e["content"]
+            for e in sources
+        )
+        assert all(e["source_label"] == "illustrative" for e in sources)
+        assert after["analysis_runs"][0]["id"] == run["id"]
+        assert after["analysis_runs"][0]["evaluation"] == run["evaluation"]
+        assert after["analysis_runs"][0]["source_notes"] == run["source_notes"]
+        assert after["analysis_runs"][0]["status"] == "applied"
+        event = next(e for e in after["audit"] if e["action"] == "analysis_saved_to_draft")
+        assert event["details"]["proposal_ids"] == req["proposal_ids"]
+        assert event["details"]["review_note"] == req["approval_note"]
+        # A repeated request cannot silently apply it to another revision.
+        assert (
+            client.post(f"{BASE}/{run['id']}/apply", headers=headers, json=req).status_code == 409
+        )
+
+
+def test_stale_extracts_cannot_replace_reviewed_draft(make_client):
+    with make_client(demo_seed_state="approved_baseline") as client:
+        headers = auth(client, "expert")
+        run = diagnose(client, headers).json()
+        changed = client.patch(
+            "/api/v1/tasks/task_001/draft",
+            headers=headers,
+            json={
+                "expected_revision": run["revision"],
+                "changes": [
+                    {
+                        "knowledge_unit_id": run["proposals"][0]["knowledge_unit_id"],
+                        "fields": {
+                            "exception": "Keep this observation unknown until expert review."
+                        },
+                    }
+                ],
+            },
+        )
+        assert changed.status_code == 200
+        result = client.post(
+            f"{BASE}/{run['id']}/apply",
+            headers=headers,
+            json={
+                "expected_revision": run["revision"] + 1,
+                "proposal_ids": [p["id"] for p in run["proposals"]],
+                "approval_note": "Reviewed",
+            },
+        )
+        assert result.status_code == 409
+        assert result.json()["error"]["code"] == "ANALYSIS_STALE"

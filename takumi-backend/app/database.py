@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import DeclarativeBase
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 
 class Base(DeclarativeBase):

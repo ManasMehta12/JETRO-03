@@ -10,6 +10,12 @@ uv sync
 ```sh
 cp .env.example .env
 ```
+
+Studio diagnosis uses `STUDIO_AI_MODEL` when set, then `GEMINI_MODEL`, then
+`gemini-flash-latest`. Set `STUDIO_AI_MODEL` to a model available to your key to
+configure the Expert agents independently of video extraction. Restart the backend
+after changing `.env`. The local diagnosis configuration was verified with
+`STUDIO_AI_MODEL=gemini-3.5-flash-lite` and `STUDIO_AI_TIMEOUT_SECONDS=60`.
 Keep `.env` private. Defaults need no API key. Set `DEMO_SIGNING_SECRET` for tokens that survive restarts; empty generates a process-local key. Production requires all demo switches false and a future production identity integration.
 
 ## Start
@@ -196,6 +202,8 @@ The current integrated demo is documented in the [root README](../README.md#one-
 
 In `DEMO_MODE=true`, both Studio and legacy publication endpoints require a fresh passing evidence evaluation and explicit human publication. No separate admin grant is required. Outside demo mode, the revision/content-specific authorization remains required. Demo identities are not production account management.
 
-AI analysis records and stages live in `studio_analysis_runs`; schema 6 is an additive migration. Provider calls run outside database transactions. Approving selected proposals checks the draft revision, creates attributed evidence, applies patches, evaluates and publishes atomically. Unanswered prompts require explicit deferral or a recorded response. Existing clarification responses can carry `knowledge_update` to apply a selected field.
+AI analysis records and stages live in `studio_analysis_runs`; schema 7 adds saved course scripts and expert notes in `studio_course_content`. Provider calls run outside database transactions. Approving selected proposals checks the draft revision and source snapshot, creates attributed evidence, applies patches, evaluates and publishes atomically. Unanswered prompts require explicit deferral or a recorded response. Existing clarification responses can carry `knowledge_update` to apply a selected field.
+
+In **AI diagnosis → Course video & script**, upload the course MP4 and upload or paste its text script. The panel automatically uses these saved inputs. **Expert review → Expert notes for tacit extraction** saves optional expert observations; choose **Include saved expert review notes in course extraction** before the next run. Gemini receives the actual uploaded video and produces timestamped observations and structured tacit proposals. Review previews the extracted units before you save the replacement draft or explicitly publish it. Source edits invalidate earlier proposals. MP4 upload requires `ENABLE_MEDIA_UPLOAD=true` and server ffprobe; live extraction requires `GEMINI_API_KEY`. A configured course playback URL alone is not an uploaded source file.
 
 Full fixture reset now also clears learner enrollments, manual completions and diagnosis runs. It is destructive and must be explicitly requested; it is not part of preflight. Learner-only reset uses `/api/v1/learning/reset` and leaves published course content in place. A new publication starts a fresh learning context; historical learner reports across releases remain future work.
