@@ -30,11 +30,11 @@ def build_draft_content(
                 f"({step.start_ms}-{step.end_ms} ms): {problem}"
             )
         else:
-            interval = (step.start_ms, step.end_ms)
+            description = (step.evidence_description or "").strip() or fields["action"]
+            interval = (step.start_ms, step.end_ms, step.source_modality, description)
             if interval not in intervals:
                 evidence_id = new_id("ev")
                 intervals[interval] = evidence_id
-                description = (step.evidence_description or "").strip() or fields["action"]
                 evidence_rows.append(
                     dict(
                         id=evidence_id,

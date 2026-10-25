@@ -1,3 +1,4 @@
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -40,6 +41,7 @@ class Settings(BaseSettings):
     max_video_duration_seconds: int = Field(240, ge=1)
     enable_processing_worker: bool = False
     processing_max_retries: int = Field(2, ge=0, le=5)
+    processing_max_concurrent_jobs: int = Field(1, ge=1)
     processing_poll_interval_seconds: float = Field(2.0, gt=0)
     processing_job_lease_seconds: int = Field(180, ge=30)
     processing_provider_timeout_seconds: int = Field(120, ge=10)
@@ -59,7 +61,7 @@ class Settings(BaseSettings):
 
     @property
     def studio_model(self) -> str:
-        return self.studio_ai_model or self.gemini_model or "gemini-flash-latest"
+        return self.studio_ai_model or self.gemini_model or "gemini-3.5-flash-lite"
 
     @property
     def cors_origin_list(self) -> list[str]:
@@ -67,6 +69,12 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_capabilities(self):
+        for field in ("gemini_model", "studio_ai_model"):
+            value = getattr(self, field)
+            if value and value.strip() and not re.fullmatch(r"gemini-3[\w.-]*", value):
+                raise ValueError(
+                    f"{field.upper()} must be a Gemini 3-series model id (gemini-3...)"
+                )
         reserved = {
             "log_model_inputs": 6,
             "enable_live_gap_generation": 6,

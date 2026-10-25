@@ -44,7 +44,7 @@ def provider(settings_factory, monkeypatch):
     constructor = Mock(return_value=fake)
     monkeypatch.setattr("app.ai.gemini_provider.genai.Client", constructor)
     settings = settings_factory(
-        ai_provider="gemini", gemini_api_key="secret-test-key", gemini_model="fake-model"
+        ai_provider="gemini", gemini_api_key="secret-test-key", gemini_model="gemini-3-fake"
     )
     result = GeminiAIProvider(settings)
     assert constructor.call_args.kwargs["api_key"] == "secret-test-key"
@@ -123,7 +123,7 @@ def test_heartbeat_exception_is_not_normalized(provider):
 def test_check_model(provider, actions):
     provider._client.models.get.return_value = types.Model(supported_actions=actions)
     provider.check_model()
-    provider._client.models.get.assert_called_once_with(model="fake-model")
+    provider._client.models.get.assert_called_once_with(model="gemini-3-fake")
 
 
 def test_check_model_without_supported_actions(provider):
@@ -139,6 +139,15 @@ def test_unsupported_model(provider):
     assert not error.value.retryable
 
 
+def test_missing_model_is_not_retryable(provider):
+    provider._client.models.get.side_effect = errors.ClientError(404, {})
+    with pytest.raises(ProviderError) as error:
+        provider.check_model()
+    assert error.value.code == "AI_PROVIDER_UNAVAILABLE"
+    assert error.value.message == "Configured model was not found."
+    assert not error.value.retryable
+
+
 def test_valid_extraction_and_sdk_schema_validation(provider, task, active_file):
     def generate_content(**kwargs):
         # Real installed SDK validation runs before the fake receives this config.
@@ -146,7 +155,7 @@ def test_valid_extraction_and_sdk_schema_validation(provider, task, active_file)
         assert config.response_schema is VideoExtractionResult
         assert config.response_mime_type == "application/json"
         assert config.temperature == 0
-        assert kwargs["model"] == "fake-model"
+        assert kwargs["model"] == "gemini-3-fake"
         part, prompt = kwargs["contents"]
         assert isinstance(part, types.Part)
         assert part.file_data.file_uri == active_file.uri
@@ -161,7 +170,7 @@ def test_valid_extraction_and_sdk_schema_validation(provider, task, active_file)
     extracted = provider.extract_video(active_file, task, 3000, True)
     assert extracted.result.steps[0].action == "Inspect bearing"
     assert extracted.usage == {"prompt_token_count": 12}
-    assert extracted.model_id == "fake-model"
+    assert extracted.model_id == "gemini-3-fake"
     assert extracted.prompt_version == PROMPT_VERSION
 
 
@@ -226,6 +235,12 @@ def test_normalized_errors(provider, task, active_file, exception, code, retryab
     }
     fake_method, args = methods[method]
     fake_method.side_effect = exception
+    if (
+        method == "check_model"
+        and isinstance(exception, errors.ClientError)
+        and exception.code == 404
+    ):
+        code, retryable = "AI_PROVIDER_UNAVAILABLE", False
     with pytest.raises(ProviderError) as error:
         getattr(provider, method)(*args)
     assert (error.value.code, error.value.retryable) == (code, retryable)
@@ -249,6 +264,10 @@ def test_rate_limit_retry_delay(provider, delay, expected):
 def test_prompt(task):
     prompt = build_prompt(task, 4321, False)
     assert INSTRUCTIONS in prompt
+    assert (
+        "Do not extract irrelevant camera motion or repeated gestures as separate knowledge units."
+        in prompt
+    )
     assert "The recording lasts 4321 ms" in prompt
     assert "0 <= start_ms < end_ms <= 4321" in prompt
     assert (

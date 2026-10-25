@@ -61,8 +61,20 @@ def test_invalid_settings(overrides, message):
 
 
 def test_gemini_settings():
-    settings = Settings(_env_file=None, ai_provider="gemini", gemini_api_key="k", gemini_model="m")
+    settings = Settings(
+        _env_file=None, ai_provider="gemini", gemini_api_key="k", gemini_model="gemini-3-m"
+    )
     assert settings.ai_provider == "gemini"
+
+
+def test_gemini_model_rejects_non_gemini_3():
+    with pytest.raises(ValidationError, match="GEMINI_MODEL must be a Gemini 3-series model id"):
+        Settings(_env_file=None, gemini_model="gemini-2.5-flash")
+
+
+def test_studio_model_rejects_non_gemini_3():
+    with pytest.raises(ValidationError, match="STUDIO_AI_MODEL must be a Gemini 3-series model id"):
+        Settings(_env_file=None, studio_ai_model="gemini-flash-latest")
 
 
 def test_openrouter_settings():

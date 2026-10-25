@@ -30,7 +30,10 @@ def _retry_delay(details) -> float | None:
     return None
 
 
-def _normalize(exc: Exception) -> ProviderError:
+def _normalize(
+    exc: Exception,
+    missing=("AI_FILE_EXPIRED", "AI provider file is unavailable.", True),
+) -> ProviderError:
     if isinstance(exc, ProviderError):
         return exc
     if isinstance(exc, errors.ClientError):
@@ -46,7 +49,7 @@ def _normalize(exc: Exception) -> ProviderError:
                 "AI_PROVIDER_AUTH_FAILED", "AI provider authentication failed.", False
             )
         if exc.code == 404:
-            return ProviderError("AI_FILE_EXPIRED", "AI provider file is unavailable.", True)
+            return ProviderError(*missing)
     if isinstance(exc, httpx.TimeoutException):
         return ProviderError("PROCESSING_TIMEOUT", "AI provider request timed out.", True)
     if isinstance(exc, (errors.ServerError, httpx.TransportError)):
@@ -86,7 +89,10 @@ class GeminiAIProvider:
                     False,
                 )
         except Exception as exc:
-            raise _normalize(exc) from None
+            raise _normalize(
+                exc,
+                missing=("AI_PROVIDER_UNAVAILABLE", "Configured model was not found.", False),
+            ) from None
 
     def upload_file(self, path: Path, mime_type: str, display_name: str) -> ProviderFile:
         try:

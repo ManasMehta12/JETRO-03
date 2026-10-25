@@ -16,7 +16,7 @@ from tests.test_media import upload
 
 class FakeExtractor:
     provider = "gemini"
-    model_id = "fake-model"
+    model_id = "gemini-3-fake"
 
     def __init__(self, *results):
         self.results = list(results)
@@ -59,8 +59,8 @@ def extraction(**changes):
     step.update(changes)
     return VideoExtraction(
         result=VideoExtractionResult(task_summary="Inspection", steps=[ExtractedStep(**step)]),
-        model_id="fake-model",
-        prompt_version="video_extraction_v1",
+        model_id="gemini-3-fake",
+        prompt_version="video_extraction_v2",
         usage={"total_token_count": 10},
     )
 
@@ -70,7 +70,7 @@ def live_client(make_client):
     with make_client(
         ai_provider="gemini",
         gemini_api_key="test-key",
-        gemini_model="fake-model",
+        gemini_model="gemini-3-fake",
         enable_media_upload=True,
         enable_media_streaming=True,
         enable_media_processing=True,
@@ -277,6 +277,23 @@ def test_retry_reuses_provider_file(live_client, sample_videos):
         )
 
 
+def test_max_concurrent_jobs_blocks_second_claim(live_client, sample_videos):
+    client = live_client
+    first_task, first_media = setup_recording(client, sample_videos)
+    first_job = process(client, first_task, first_media).json()["job_id"]
+    second_task, second_media = setup_recording(client, sample_videos)
+    second_job = process(client, second_task, second_media).json()["job_id"]
+    sessions, settings = client.app.state.sessionmaker, client.app.state.settings
+    assert settings.processing_max_concurrent_jobs == 1
+    assert processing_worker.claim_next_job(sessions, settings, "first") == first_job
+    assert processing_worker.claim_next_job(sessions, settings, "second") is None
+    assert job(client, second_job)["status"] == "queued"
+    with sessions() as session, session.begin():
+        session.get(ProcessingJob, first_job).lease_expires_at = utcnow() - timedelta(seconds=1)
+    assert processing_worker.claim_next_job(sessions, settings, "replacement") == first_job
+    assert job(client, first_job)["attempt_count"] == 2
+
+
 def test_crash_recovery_and_lease_guard(live_client, sample_videos):
     client = live_client
     task_id, media_id = setup_recording(client, sample_videos)
@@ -439,7 +456,9 @@ def test_processing_flags_and_access(client, live_client):
 
 def test_extraction_deduplicates_intervals_and_warns():
     media = MediaAsset(id="media-test", task_id="task-test", duration_ms=3000, audio_codec=None)
-    result = extraction(source_modality="spoken").result
+    result = extraction(
+        source_modality="spoken", evidence_description="Narrated bearing inspection"
+    ).result
     result.steps.append(result.steps[0].model_copy(update={"action": " Check again "}))
     result.steps.append(result.steps[0].model_copy(update={"action": "   "}))
     result.processing_warnings = ["Uncertain view"]
@@ -456,6 +475,31 @@ def test_extraction_deduplicates_intervals_and_warns():
         extraction_service.build_draft_content(
             VideoExtractionResult(task_summary="Empty"), media, "AI"
         )
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"source_modality": "spoken"},
+        {"evidence_description": "A narrated check"},
+        {"source_modality": "spoken", "evidence_description": "A narrated check"},
+    ],
+)
+def test_extraction_preserves_evidence_provenance(changes):
+    media = MediaAsset(id="media-test", task_id="task-test", duration_ms=3000, audio_codec="aac")
+    result = extraction(evidence_description="A visible check").result
+    result.steps.append(result.steps[0].model_copy(update=changes))
+    units, evidence, warnings = extraction_service.build_draft_content(result, media, "AI")
+    assert len(evidence) == 2
+    for unit, row in zip(units, evidence, strict=True):
+        assert unit["evidence_ids"] == [row["id"]]
+        assert unit["field_evidence"]["action"] == [row["id"]]
+        assert (row["start_ms"], row["end_ms"]) == (100, 1000)
+    assert "source: visual" in evidence[0]["content"]
+    assert "A visible check" in evidence[0]["content"]
+    assert f"source: {changes.get('source_modality', 'visual')}" in evidence[1]["content"]
+    assert changes.get("evidence_description", "A visible check") in evidence[1]["content"]
+    assert warnings == []
 
 
 def test_checkpoint_resume_skips_provider_extraction(live_client, sample_videos, monkeypatch):

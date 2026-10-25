@@ -11,19 +11,19 @@ def test_studio_model_override_is_used_by_provider_and_configuration(settings_fa
 
     settings = settings_factory(
         gemini_api_key="test-key",
-        gemini_model="video-model",
-        studio_ai_model="studio-model",
+        gemini_model="gemini-3-video",
+        studio_ai_model="gemini-3-studio",
     )
     agents = StudioAgents(settings)
     try:
-        assert agents.model == service.configuration(settings)["model"] == "studio-model"
+        assert agents.model == service.configuration(settings)["model"] == "gemini-3-studio"
     finally:
         agents.client.close()
 
 
 def test_studio_model_falls_back_to_general_model_then_default(settings_factory):
-    assert settings_factory(gemini_model="video-model").studio_model == "video-model"
-    assert settings_factory().studio_model == "gemini-flash-latest"
+    assert settings_factory(gemini_model="gemini-3-video").studio_model == "gemini-3-video"
+    assert settings_factory().studio_model == "gemini-3.5-flash-lite"
 
 
 def test_provider_uses_json_schema_transport_for_strict_outputs(settings_factory, monkeypatch):

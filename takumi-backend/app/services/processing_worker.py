@@ -6,7 +6,7 @@ from datetime import timedelta
 from functools import partial
 from uuid import uuid4
 
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker as make_sessionmaker
 
@@ -44,6 +44,13 @@ def claim_next_job(sessionmaker, settings, worker_id) -> str | None:
                 updated_at=now,
             )
         )
+        running_count = session.scalar(
+            select(func.count())
+            .select_from(ProcessingJob)
+            .where(ProcessingJob.status == "running", ProcessingJob.lease_expires_at >= now)
+        )
+        if running_count >= settings.processing_max_concurrent_jobs:
+            return None
         job = session.scalar(
             select(ProcessingJob)
             .where(
