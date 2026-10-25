@@ -276,7 +276,7 @@ def test_source_validation_rejects_unsupported_output():
         service.validate_proposals([p], service.demo_source()["source_notes"], [{"id": "ku_002"}])
 
 
-def test_exact_subquote_keeps_uncertainty_qualifier_and_negation():
+def test_exact_subquote_keeps_uncertainty_qualifier_and_negation(caplog):
     p = {
         "knowledge_unit_id": "ku_1",
         "field": "interpretation",
@@ -300,6 +300,16 @@ def test_exact_subquote_keeps_uncertainty_qualifier_and_negation():
     assert kept(contracted) == contracted[:-1]
     # Qualifiers in an earlier sentence do not leak into an unqualified claim.
     assert kept("It may rattle. If it feels gritty, stop.", "stop") == "stop"
+    decimal = "At 0.5 mm, usually replace the shim."
+    assert kept(decimal, "replace the shim") == decimal[:-1]
+    assert kept("Wipe it. Wipe it.", "Wipe it") == "Wipe it"
+    ambiguous = "Do not tighten the collar.\nAt final inspection, tighten the collar."
+    p["source_quote"] = p["after"] = "tighten the collar"
+    assert service.validate_proposals([p], ambiguous, [{"id": "ku_1"}]) == []
+    assert "Dropping ambiguous source quote" in caplog.text
+    unambiguous = {**p, "source_quote": "At final inspection", "after": "At final inspection"}
+    [result] = service.validate_proposals([p, unambiguous], ambiguous, [{"id": "ku_1"}])
+    assert result["after"] == "At final inspection"
 
 
 def test_interrupted_run_recovery_and_duplicate_lock(make_client):

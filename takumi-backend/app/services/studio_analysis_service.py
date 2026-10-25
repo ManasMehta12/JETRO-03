@@ -152,12 +152,22 @@ QUALIFIERS = re.compile(
 
 
 def keep_hedge(quote, source):
-    """Extend a quote to its sentence start when a qualifier or negation precedes it."""
+    """Preserve qualifiers across all quote occurrences, or return None if ambiguous."""
+    boundaries = re.compile(r"[.!?](?=\s)|\n")
+    extensions = set()
     start = source.find(quote)
-    sentence = max(source.rfind(mark, 0, start) for mark in ".!?\n") + 1
-    if not QUALIFIERS.search(source, sentence, start):
-        return quote
-    return source[sentence : start + len(quote)].lstrip()
+    while start != -1:
+        sentence = 0
+        for boundary in boundaries.finditer(source, 0, start):
+            sentence = boundary.end()
+        extension = (
+            source[sentence : start + len(quote)].lstrip()
+            if QUALIFIERS.search(source, sentence, start)
+            else quote
+        )
+        extensions.add(extension)
+        start = source.find(quote, start + 1)
+    return next(iter(extensions)) if len(extensions) == 1 else None
 
 
 def validate_proposals(proposals, source, units):
@@ -174,7 +184,11 @@ def validate_proposals(proposals, source, units):
             raise ProviderError(
                 "AI_OUTPUT_UNSUPPORTED", "AI patch is not an exact source extract.", False
             )
-        p["source_quote"] = p["after"] = keep_hedge(p["source_quote"], source)
+        quote = keep_hedge(p["source_quote"], source)
+        if quote is None:
+            logger.warning("Dropping ambiguous source quote: %r", p["source_quote"])
+            continue
+        p["source_quote"] = p["after"] = quote
         seen.add(key)
         before = known[key[0]].get(key[1])
         if before != p["after"]:
