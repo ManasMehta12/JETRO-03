@@ -14,10 +14,10 @@ Roles: **all** = expert, reviewer, apprentice; **editors** = expert, reviewer. E
 | POST /tasks | Create real-source task | editors | TaskCreate → TaskOut (201) | `{"title":"Inspection","equipment":"Bench"}` | — | — |
 | GET /tasks/{task_id} | Task metadata | all | — → TaskOut | GET /api/v1/tasks/task_001 | TASK_NOT_FOUND | — |
 | GET /tasks/{task_id}/draft | Editable draft and gaps | editors | — → DraftOut | 02-read-draft.json | DRAFT_NOT_FOUND | — |
-| PATCH /tasks/{task_id}/draft | Field corrections | editors | DraftPatch → DraftPatchOut | `{"expected_revision":1,"changes":[{"knowledge_unit_id":"ku_001","fields":{"cue":null}}]}` | REVISION_CONFLICT, KNOWLEDGE_UNIT_NOT_FOUND | — |
+| PATCH /tasks/{task_id}/draft | Field/interval corrections and unit review | editors | DraftPatch → DraftPatchOut | `{"expected_revision":1,"changes":[{"knowledge_unit_id":"ku_001","fields":{"cue":null}}]}` | REVISION_CONFLICT, KNOWLEDGE_UNIT_NOT_FOUND, UNIT_NOT_APPROVABLE, INVALID_EVIDENCE | — |
 | POST /clarifications/{clarification_id}/respond | Expert answer and evidence | editors | ClarificationRespond → ClarificationRespondOut | 04-answer-clarification.json | CLARIFICATION_NOT_FOUND, INVALID_STATE_TRANSITION, INVALID_KNOWLEDGE_UPDATE, REVISION_CONFLICT | — |
 | GET /evidence/{evidence_id} | Resolve source | all | — → EvidenceItemOut | 05-read-evidence.json | EVIDENCE_NOT_FOUND | — |
-| POST /tasks/{task_id}/publish | Approve snapshot | reviewer | PublishRequest → PublishOut (201; retry 200) | 07-publish.json | TASK_NOT_FOUND, DRAFT_NOT_FOUND, REVISION_CONFLICT, PUBLICATION_BLOCKED | — |
+| POST /tasks/{task_id}/publish | Approve snapshot after evaluation | reviewer | PublishRequest → PublishOut (201; retry 200) | 07-publish.json | TASK_NOT_FOUND, DRAFT_NOT_FOUND, REVISION_CONFLICT, PUBLICATION_BLOCKED, EVALUATION_REQUIRED, AUTHORIZATION_REQUIRED | — |
 | GET /tasks/{task_id}/release | Active release | all | — → ReleaseOut | 08-read-release.json | NO_ACTIVE_RELEASE | — |
 | GET /releases/{release_id} | Specific immutable release | all | — → ReleaseOut | GET /api/v1/releases/release_001 | RELEASE_NOT_FOUND | — |
 | GET /releases/{release_id}/training-pack | Simulation pack | all | — → TrainingPack | 09-training-pack.json | RELEASE_NOT_FOUND, INTERNAL_ERROR, FEATURE_DISABLED | ENABLE_TRAINING_PACK_EXPORT |
@@ -133,8 +133,29 @@ this Studio workflow has not yet been verified.
 2. Read seeded draft and pending clarifications. Draft fields include revision, evidence IDs and per-field evidence.
 3. PATCH content with `expected_revision`, or respond with `expected_draft_revision`. Null clears an optional content field to unknown; action cannot be null. Revision conflicts require a fresh read.
 4. Clarification disposition is answered, premise_rejected, unobservable or deferred. An answered response requires text; only answered responses may update knowledge. Rejected/deferred dispositions preserve draft content and revision.
-5. Reviewer publishes current revision. Publishing approves every unit; there is no separate per-unit approval endpoint. Publication blocks unsupported populated fields or cross-task/missing evidence, but allows null unknown fields.
+5. Evaluate the current revision through `POST /studio/tasks/{task_id}/evaluate` with `{"expected_revision":N}` before reviewer publication. Publishing approves every unit regardless of draft per-unit approval. Publication blocks pending clarifications, unsupported populated fields and cross-task/missing evidence, but allows null unknown fields. Outside demo mode, Studio authorization is also required.
 6. Read release/evidence. Apprentices never read drafts; unpublished tasks and evidence are hidden from them. Apprentice evidence must appear in a release snapshot for that task.
+
+### Draft review changes
+
+Each `DraftChange` in `PATCH /tasks/{task_id}/draft` accepts `knowledge_unit_id`,
+`operation` (`update`, `approve`, or `reject`; default `update`), optional `fields`,
+and optional `interval: {"evidence_id":"ev_…","start_ms":100,"end_ms":500}`.
+An update requires fields or an interval; approve/reject forbid both (422
+`VALIDATION_ERROR`). The outer `expected_revision` and response shapes stay unchanged.
+
+Interval corrections require a video segment cited by the unit and timestamps
+within its recording (`0 <= start_ms < end_ms <= duration_ms`). Invalid evidence
+returns 422 `INVALID_EVIDENCE`. A correction creates new attributed evidence,
+replaces the unit's evidence and per-field citations, preserves the old evidence
+for history, and resets the unit to `draft`. Fields may be updated in the same change.
+
+Approval sets `review_status` to `approved` only when action and every populated
+content field have evidence; otherwise it returns 409 `UNIT_NOT_APPROVABLE`.
+Later field/interval edits reset approval to `draft`. Rejection removes the unit
+and marks its pending clarifications `premise_rejected`; an empty draft is allowed
+but cannot publish. Remaining units preserve their order. Per-unit approval is a
+review aid, not an additional publication gate.
 
 Baseline startup already contains `release_001`. Before a live expert demo, reviewer sends:
 ```json
@@ -199,7 +220,7 @@ Process request (`POST /tasks/task_example/process`):
   "warnings": [],
   "provider": "gemini",
   "model_id": "<configured GEMINI_MODEL>",
-  "prompt_version": "video_extraction_v1",
+  "prompt_version": "video_extraction_v2",
   "created_at": "2026-10-24T00:00:00Z",
   "updated_at": "2026-10-24T00:00:00Z"
 }
@@ -271,6 +292,8 @@ Fixture task/draft/KU/clarification/evidence/release IDs are stable across demo 
 | REVISION_CONFLICT | 409 |
 | INVALID_STATE_TRANSITION | 409 |
 | PUBLICATION_BLOCKED | 409 |
+| UNIT_NOT_APPROVABLE, EVALUATION_REQUIRED | 409 |
+| AUTHORIZATION_REQUIRED | 403 |
 | UNAUTHENTICATED | 401 |
 | FORBIDDEN | 403 |
 | FEATURE_DISABLED | 501 |
@@ -301,13 +324,20 @@ Worker failures appear in `JobOut.error` within a 200 polling response, not as p
 - `/demo/reset` adds `state`; `attempts` returns 400 because the scenario engine owns learner attempts.
 - Adds `GET /releases/{id}` and `GET /releases/{id}/training-pack`.
 - C4/C5 implement media/process/jobs/stream behind disabled-by-default flags. `GET /media/{id}` is additive; processing returns the full `JobOut` superset with status/stage/progress, provenance, warnings and timestamps.
-- No per-unit review step: publish = approval for all units. Draft `review_status` stays `draft`; only release snapshots are `approved`.
+- Per-unit approval/rejection and interval corrections use draft changes; publishing still approves every remaining unit.
 - New server databases auto-seed `approved_baseline` (`release_001`). Reset to `fresh` with the confirmed request above before a live expert demo.
 - Scenario/attempt/viva/report routes are not served here. Teammates may mount routers in `app/main.py` and reuse `get_current_user`/`require_roles`.
 - Ignore conflicting `markdowns/hackathon/openapi/*.openapi.json`: `/studio/*` prefixes, flat errors, `learner` role and `Idempotency-Key` convention do not govern this backend. API.doc.md wins. Generated source files were not edited.
 - `GET /tasks/{id}` still omits media/processing fields; frontend retains IDs from upload/process responses.
 - Existing `DraftOut`, `EvidenceItemOut`, `ReleaseOut`, `TrainingPack`, `PublishOut` and `AskOut` response fields are unchanged.
 - Processing rejects existing drafts; MP4-only validation and Starlette's non-JSON 416 are intentional deviations.
+
+| Deviation | Behavior | Reason |
+|---|---|---|
+| Legacy `POST /tasks/{id}/publish` uses the Studio publication gate | Requires a passing evaluation of the current revision (409 `EVALUATION_REQUIRED`), no pending clarifications (409 `PUBLICATION_BLOCKED`), and, outside demo mode, Studio authorization (403 `AUTHORIZATION_REQUIRED`). | Preserve the human-review gate on every publication path. |
+
+Known access limitation (accepted by user decision): any expert can access any
+task; task ownership does not restrict expert access.
 
 ## Contract examples
 

@@ -61,6 +61,32 @@ def test_publish_reviewer_only(client, role):
     assert response.json()["error"]["code"] == "FORBIDDEN"
 
 
+def test_legacy_publish_requires_evaluation(client):
+    expert = auth(client, "expert")
+    draft = client.get("/api/v1/tasks/task_001/draft", headers=expert).json()
+    revision = draft["revision"]
+    for gap in draft["clarifications"]:
+        if gap["status"] == "pending":
+            response = client.post(
+                f"/api/v1/clarifications/{gap['id']}/respond",
+                headers=expert,
+                json={
+                    "expected_draft_revision": revision,
+                    "disposition": "deferred",
+                    "answer": "Deferred to isolate the evaluation gate.",
+                },
+            )
+            assert response.status_code == 200, response.text
+            revision = response.json()["draft_revision"]
+    response = client.post(
+        "/api/v1/tasks/task_001/publish",
+        headers=auth(client, "reviewer"),
+        json={"expected_revision": revision, "approval_note": "Reviewed without evaluation."},
+    )
+    assert response.status_code == 409, response.text
+    assert response.json()["error"]["code"] == "EVALUATION_REQUIRED"
+
+
 def test_publish_and_retry(client):
     response = publish_request(client)
     assert response.status_code == 201
