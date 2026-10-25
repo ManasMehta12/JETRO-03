@@ -130,7 +130,7 @@ This option keeps the existing local whisper.cpp transcription stage and sends o
 ```dotenv
 AI_PROVIDER=openrouter
 OPENROUTER_API_KEY=your-key
-OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free,xingchen-agi/xing4.0-29b-a4b:free,openrouter/free
+OPENROUTER_MODEL=nvidia/nemotron-3.5-super-vl:free,xingchen-agi/xing4.0-29b-a4b:free,openrouter/free
 WHISPER_BASE_URL=http://192.168.1.42:8080
 ENABLE_MEDIA_UPLOAD=true
 ENABLE_MEDIA_STREAMING=true

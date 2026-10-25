@@ -133,3 +133,23 @@ def test_openrouter_auth_error_is_not_retried(setup_provider):
         setup_provider.check_model()
     assert error.value.code == "AI_PROVIDER_AUTH_FAILED"
     assert not error.value.retryable
+
+
+def test_openrouter_preflight_skips_unavailable_primary(setup_provider):
+    def endpoints(request):
+        return httpx.Response(404 if "provider/model" in request.url.path else 200, json={})
+
+    setup_provider._http.close()
+    setup_provider._http = httpx.Client(
+        base_url="https://openrouter.ai/api/v1", transport=httpx.MockTransport(endpoints)
+    )
+    setup_provider.check_model()
+
+    setup_provider._http.close()
+    setup_provider._http = httpx.Client(
+        base_url="https://openrouter.ai/api/v1",
+        transport=httpx.MockTransport(lambda request: httpx.Response(404)),
+    )
+    with pytest.raises(ProviderError) as error:
+        setup_provider.check_model()
+    assert error.value.code == "AI_PROVIDER_UNAVAILABLE"

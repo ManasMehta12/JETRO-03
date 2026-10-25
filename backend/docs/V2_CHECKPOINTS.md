@@ -94,4 +94,12 @@ This text-only provider captures narration, not visual-only knowledge. Job prove
 
 ## OpenRouter transcript extraction
 
-OpenRouter replaces only Ollama's text extraction request. ffmpeg and whisper.cpp still produce a timestamped transcript locally; only that transcript is sent to OpenRouter using strict JSON-schema output with `provider.require_parameters=true`. `OPENROUTER_MODEL` is a comma-separated fallback list sent as `models`; each job records the model that answered. Model capability, schema compatibility and extraction quality require a real-key run and are not yet verified.
+OpenRouter replaces only Ollama's text extraction request. ffmpeg and whisper.cpp still produce a timestamped transcript locally; only that transcript is sent to OpenRouter using strict JSON-schema output with `provider.require_parameters=true`. `OPENROUTER_MODEL` is a comma-separated fallback list sent as `models`; each job records the model that answered. Preflight passes when any listed model is reachable; 401/403 stays fatal.
+
+### Verified (real key, 2026-10-25, 3-line English bearing transcript, extraction call only)
+
+- `nvidia/nemotron-3.5-super-vl:free`: 3 faithful steps with correct intervals, 5–10 s. Chosen as primary.
+- `xingchen-agi/xing4.0-29b-a4b:free` and `liquid/lfm-2.5-2.6b:free`: 429 upstream rate limit at test time.
+- `nvidia/nemotron-3-super-120b-a12b:free`: provider 404 at test time; removed from the default list.
+- `openrouter/free` routed to `dots-studio/dots-3-note-preview:free`, which returned 0 steps; the worker treats that as retryable `AI_RESPONSE_INVALID`.
+- Not verified: whisper.cpp on the Mac, the full worker run with OpenRouter, Japanese transcripts.

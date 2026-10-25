@@ -43,8 +43,17 @@ class OpenRouterVideoExtractor(OllamaVideoExtractor):
 
     def check_model(self) -> None:
         try:
+            # One reachable model is enough; OpenRouter skips the unavailable ones.
             for model in self._models:
-                self._http.get(f"/models/{model}/endpoints").raise_for_status()
+                try:
+                    self._http.get(f"/models/{model}/endpoints").raise_for_status()
+                    break
+                except httpx.HTTPStatusError as exc:
+                    if exc.response.status_code in (401, 403):
+                        raise
+                    last_error = exc
+            else:
+                raise last_error
             self._stt.get("/")
         except Exception as exc:
             raise _openrouter_error(exc) from None
