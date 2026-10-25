@@ -53,7 +53,7 @@ export default function ExpertStudio({ administration = false }: { administratio
     : run?.status === 'running' ? `Diagnosis is already running: ${run.stage.replaceAll('_', ' ')}.`
     : !config ? 'Wait for the Studio configuration to load.'
     : !config.enabled ? 'AI diagnosis is disabled in the backend configuration.'
-    : requestMode === 'live' && config.mode !== 'live' ? 'Live AI needs GEMINI_API_KEY in backend/.env. Restart the backend after configuring it.'
+    : requestMode === 'live' && config.mode !== 'live' ? 'Live AI needs GEMINI_API_KEY in takumi-backend/.env. Restart the backend after configuring it.'
     : courseDirty ? 'Save or discard your course script or expert review notes before running diagnosis.'
     : dirty ? 'Save or discard your draft field edits before running diagnosis.'
     : answer.trim() ? 'Record or discard your clarification response before running diagnosis.'

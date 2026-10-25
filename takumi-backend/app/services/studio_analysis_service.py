@@ -82,7 +82,7 @@ def configuration(settings, session=None, task_id=None):
             "Live Gemini agents extract source-supported tacit knowledge. "
             "Human approval is required."
             if live
-            else "Live AI requires GEMINI_API_KEY in backend/.env and a backend restart. "
+            else "Live AI requires GEMINI_API_KEY in takumi-backend/.env and a backend restart. "
             "No AI results will be simulated automatically."
         ),
     }
