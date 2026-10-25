@@ -141,20 +141,23 @@ def _store(factory, run_id, **fields):
         return output(run)
 
 
-# Qualifiers an exact sub-quote must not drop: "usually means X" is not "X".
-HEDGES = re.compile(
+# Qualifiers an exact sub-quote must not drop: "usually means X" is not "X",
+# and "does not usually mean X" is certainly not "X".
+QUALIFIERS = re.compile(
     r"\b(usually|often|sometimes|typically|generally|may|might|could|possibly|probably"
-    r"|likely|perhaps|suggests?|indicates?|appears?|seems?)\b",
+    r"|likely|perhaps|suggests?|indicates?|appears?|seems?"
+    r"|not|no|never|neither|nor|without|unless|rarely|seldom|hardly)\b|n't\b",
     re.IGNORECASE,
 )
 
 
 def keep_hedge(quote, source):
-    """Extend a quote back to an uncertainty qualifier earlier in its sentence."""
+    """Extend a quote to its sentence start when a qualifier or negation precedes it."""
     start = source.find(quote)
     sentence = max(source.rfind(mark, 0, start) for mark in ".!?\n") + 1
-    hedge = HEDGES.search(source, sentence, start)
-    return source[hedge.start() : start + len(quote)] if hedge else quote
+    if not QUALIFIERS.search(source, sentence, start):
+        return quote
+    return source[sentence : start + len(quote)].lstrip()
 
 
 def validate_proposals(proposals, source, units):
