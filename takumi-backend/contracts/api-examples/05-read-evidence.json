@@ -1,0 +1,23 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/evidence/ev_e25a26fae480",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "ev_e25a26fae480",
+      "task_id": "task_001",
+      "type": "expert_response",
+      "author": "Demo Expert",
+      "author_id": "expert_001",
+      "content": "Illustrative example: I look at the housing first for grease leaking at the seal or discoloration. Leaking grease suggests the seal or bearing may be damaged, so I do not rotate the shaft until a supervisor has checked it.",
+      "media_id": null,
+      "start_ms": null,
+      "end_ms": null,
+      "source_label": "real",
+      "created_at": "2026-10-24T16:43:35.069381"
+    }
+  }
+}

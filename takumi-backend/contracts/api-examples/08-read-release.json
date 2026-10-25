@@ -1,0 +1,146 @@
+{
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/tasks/task_001/release",
+    "body": null
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "id": "release_2b742612c999",
+      "task_id": "task_001",
+      "version": 1,
+      "status": "active",
+      "approved_by": "reviewer_001",
+      "approved_at": "2026-10-24T16:43:35.143688",
+      "approval_note": "Demo flow reviewer approval.",
+      "content_hash": "1c31f1ebd76a520a0eb38575e3e30758c228184e88e8c4c3abdafe74015d2490",
+      "knowledge_units": [
+        {
+          "id": "ku_001",
+          "action": "Inspect the bearing housing",
+          "cue": "Illustrative: grease leaking at the housing seal or discoloration on the housing",
+          "interpretation": "Illustrative: possible seal or bearing damage",
+          "decision": "Illustrative: do not rotate the shaft; escalate to a supervisor before continuing",
+          "exception": null,
+          "evidence_ids": [
+            "ev_001",
+            "ev_e25a26fae480"
+          ],
+          "field_evidence": {
+            "action": [
+              "ev_001"
+            ],
+            "cue": [
+              "ev_e25a26fae480"
+            ],
+            "interpretation": [
+              "ev_e25a26fae480"
+            ],
+            "decision": [
+              "ev_e25a26fae480"
+            ]
+          },
+          "review_status": "approved"
+        },
+        {
+          "id": "ku_002",
+          "action": "Rotate the shaft slowly by hand through one full turn",
+          "cue": "Illustrative: a visible wobble at the shaft end during rotation",
+          "interpretation": "Illustrative: possible misalignment between the shaft and the bearing",
+          "decision": "Illustrative: stop and check bearing seating before continuing the inspection",
+          "exception": null,
+          "evidence_ids": [
+            "ev_003"
+          ],
+          "field_evidence": {
+            "action": [
+              "ev_003"
+            ],
+            "cue": [
+              "ev_003"
+            ],
+            "interpretation": [
+              "ev_003"
+            ],
+            "decision": [
+              "ev_003"
+            ]
+          },
+          "review_status": "approved"
+        },
+        {
+          "id": "ku_003",
+          "action": "Check that the base mounting fasteners are present",
+          "cue": null,
+          "interpretation": null,
+          "decision": null,
+          "exception": null,
+          "evidence_ids": [
+            "ev_004"
+          ],
+          "field_evidence": {
+            "action": [
+              "ev_004"
+            ]
+          },
+          "review_status": "approved"
+        }
+      ],
+      "evidence_items": [
+        {
+          "id": "ev_001",
+          "task_id": "task_001",
+          "type": "video_segment",
+          "author": "Illustrative Demonstration",
+          "author_id": "expert_001",
+          "content": "Illustrative description of a demonstration segment: the expert inspects the bearing housing.",
+          "media_id": null,
+          "start_ms": 25000,
+          "end_ms": 41000,
+          "source_label": "illustrative",
+          "created_at": "2026-10-24T16:43:34.892971"
+        },
+        {
+          "id": "ev_003",
+          "task_id": "task_001",
+          "type": "expert_response",
+          "author": "Illustrative Example Expert",
+          "author_id": "expert_001",
+          "content": "Illustrative example: if the shaft end wobbles while turning it by hand, I stop and check how the bearing is seated before going further.",
+          "media_id": null,
+          "start_ms": null,
+          "end_ms": null,
+          "source_label": "illustrative",
+          "created_at": "2026-10-24T16:43:34.893129"
+        },
+        {
+          "id": "ev_004",
+          "task_id": "task_001",
+          "type": "video_segment",
+          "author": "Illustrative Demonstration",
+          "author_id": "expert_001",
+          "content": "Illustrative description of a demonstration segment: the expert checks the base mounting fasteners.",
+          "media_id": null,
+          "start_ms": 52000,
+          "end_ms": 60000,
+          "source_label": "illustrative",
+          "created_at": "2026-10-24T16:43:34.893221"
+        },
+        {
+          "id": "ev_e25a26fae480",
+          "task_id": "task_001",
+          "type": "expert_response",
+          "author": "Demo Expert",
+          "author_id": "expert_001",
+          "content": "Illustrative example: I look at the housing first for grease leaking at the seal or discoloration. Leaking grease suggests the seal or bearing may be damaged, so I do not rotate the shaft until a supervisor has checked it.",
+          "media_id": null,
+          "start_ms": null,
+          "end_ms": null,
+          "source_label": "real",
+          "created_at": "2026-10-24T16:43:35.069381"
+        }
+      ]
+    }
+  }
+}

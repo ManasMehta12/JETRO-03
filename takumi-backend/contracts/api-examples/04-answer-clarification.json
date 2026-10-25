@@ -1,0 +1,29 @@
+{
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/clarifications/clar_001/respond",
+    "body": {
+      "expected_draft_revision": 1,
+      "disposition": "answered",
+      "answer": "Illustrative example: I look at the housing first for grease leaking at the seal or discoloration. Leaking grease suggests the seal or bearing may be damaged, so I do not rotate the shaft until a supervisor has checked it.",
+      "knowledge_update": {
+        "knowledge_unit_id": "ku_001",
+        "fields": {
+          "cue": "Illustrative: grease leaking at the housing seal or discoloration on the housing",
+          "interpretation": "Illustrative: possible seal or bearing damage",
+          "decision": "Illustrative: do not rotate the shaft; escalate to a supervisor before continuing"
+        }
+      }
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "clarification_id": "clar_001",
+      "status": "answered",
+      "evidence_id": "ev_e25a26fae480",
+      "knowledge_unit_id": "ku_001",
+      "draft_revision": 2
+    }
+  }
+}
