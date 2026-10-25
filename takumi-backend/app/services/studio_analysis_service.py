@@ -344,6 +344,9 @@ def analyze(factory, settings, task_id, req, user):
             _store(factory, run_id, stage="proposing")
             candidates = demo_source()["proposals"]
         proposals = validate_proposals(candidates, source, units)
+        if initial:
+            actionable_units = {p["knowledge_unit_id"] for p in proposals if p["field"] == "action"}
+            proposals = [p for p in proposals if p["knowledge_unit_id"] in actionable_units]
         for proposal in proposals:
             for observation in observations:
                 if proposal["source_quote"] in observation["observation"]:

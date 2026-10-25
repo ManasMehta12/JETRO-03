@@ -156,6 +156,59 @@ def test_course_script_uses_saved_notes_only_when_selected_and_replaces_draft_af
         assert after["evidence"][-1]["source_label"] == "real"
 
 
+def test_initial_extraction_drops_unit_when_ambiguous_action_has_no_surviving_proposal(
+    make_client, monkeypatch
+):
+    cue = "Check the alignment mark."
+    script = f"Do not tighten the collar. At final inspection, tighten the collar. {cue} {SCRIPT}"
+
+    class Agents:
+        def __init__(self, settings):
+            pass
+
+        def initial(self, source):
+            return InitialExtraction(
+                units=[
+                    InitialUnit(
+                        action="tighten the collar",
+                        cue=cue,
+                        rationale="Source extracts.",
+                    ),
+                    InitialUnit(action=SCRIPT, rationale="Unambiguous source extract."),
+                ]
+            )
+
+        def critique(self, source, proposals):
+            assert len(proposals) == 1
+            assert proposals[0]["field"] == "action"
+            assert proposals[0]["after"] == SCRIPT
+            return Critique(passed=True, issues=[], summary="Supported by the course script.")
+
+    monkeypatch.setattr(service, "StudioAgents", Agents)
+    with make_client(demo_seed_state="approved_baseline", gemini_api_key="test-key") as client:
+        headers = auth(client, "expert")
+        assert save_content(client, headers, script_text=script).status_code == 200
+        run = analyze(client, headers)
+        assert run["status"] == "ready", run
+        assert run["evaluation"]["passed"] is True
+        assert len(run["proposals"]) == 1
+        assert run["proposals"][0]["field"] == "action"
+        assert run["proposals"][0]["after"] == SCRIPT
+        applied = client.post(
+            BASE + f"/analysis/{run['id']}/apply",
+            headers=headers,
+            json={
+                "expected_revision": 2,
+                "proposal_ids": [p["id"] for p in run["proposals"]],
+                "approval_note": "Reviewed the surviving course extract.",
+            },
+        )
+        assert applied.status_code == 200, applied.text
+        units = client.get(BASE, headers=headers).json()["draft"]["knowledge_units"]
+        assert len(units) == 1
+        assert units[0]["action"] == SCRIPT
+
+
 def test_video_and_script_are_sent_outside_transactions_and_video_timestamps_survive_review(
     make_client,
     monkeypatch,
