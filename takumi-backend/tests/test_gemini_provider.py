@@ -11,7 +11,7 @@ from google.genai import errors, types
 from app.ai.base import ProviderError
 from app.ai.gemini_provider import GeminiAIProvider
 from app.ai.prompts.video_extraction_v1 import INSTRUCTIONS, PROMPT_VERSION, build_prompt
-from app.ai.schemas import ProviderFile, TaskContext, VideoExtractionResult
+from app.ai.schemas import GeminiVideoResult, ProviderFile, TaskContext
 
 
 @pytest.fixture
@@ -58,8 +58,8 @@ def valid_output():
         "detected_language": "en",
         "steps": [
             {
-                "start_ms": 0,
-                "end_ms": 1000,
+                "start": "0:00",
+                "end": "0:01.5",
                 "action": "Inspect bearing",
                 "source_modality": "visual",
             }
@@ -152,7 +152,7 @@ def test_valid_extraction_and_sdk_schema_validation(provider, task, active_file)
     def generate_content(**kwargs):
         # Real installed SDK validation runs before the fake receives this config.
         config = types.GenerateContentConfig.model_validate(kwargs["config"])
-        assert config.response_schema is VideoExtractionResult
+        assert config.response_schema is GeminiVideoResult
         assert config.response_mime_type == "application/json"
         assert config.temperature == 0
         assert kwargs["model"] == "gemini-3-fake"
@@ -160,7 +160,7 @@ def test_valid_extraction_and_sdk_schema_validation(provider, task, active_file)
         assert isinstance(part, types.Part)
         assert part.file_data.file_uri == active_file.uri
         assert part.file_data.mime_type == "video/mp4"
-        assert "3000 ms" in prompt
+        assert "The recording lasts 0:03;" in prompt
         return SimpleNamespace(
             text=json.dumps(valid_output()),
             usage_metadata=types.GenerateContentResponseUsageMetadata(prompt_token_count=12),
@@ -168,7 +168,8 @@ def test_valid_extraction_and_sdk_schema_validation(provider, task, active_file)
 
     provider._client.models.generate_content.side_effect = generate_content
     extracted = provider.extract_video(active_file, task, 3000, True)
-    assert extracted.result.steps[0].action == "Inspect bearing"
+    step = extracted.result.steps[0]
+    assert (step.action, step.start_ms, step.end_ms) == ("Inspect bearing", 0, 1500)
     assert extracted.usage == {"prompt_token_count": 12}
     assert extracted.model_id == "gemini-3-fake"
     assert extracted.prompt_version == PROMPT_VERSION
@@ -184,7 +185,17 @@ def test_valid_extraction_and_sdk_schema_validation(provider, task, active_file)
         json.dumps(
             {
                 "task_summary": "x",
-                "steps": [{"start_ms": 0, "end_ms": 1, "source_modality": "visual"}],
+                "steps": [{"start": "0:00", "end": "0:01", "source_modality": "visual"}],
+            }
+        ),
+        json.dumps({"task_summary": "x", "steps": [{**valid_output()["steps"][0], "end": "2:98"}]}),
+        json.dumps({"task_summary": "x", "steps": [{**valid_output()["steps"][0], "end": "90"}]}),
+        json.dumps(
+            {
+                "task_summary": "x",
+                "steps": [
+                    {"start_ms": 0, "end_ms": 1000, "action": "a", "source_modality": "visual"}
+                ],
             }
         ),
     ],
@@ -268,8 +279,9 @@ def test_prompt(task):
         "Do not extract irrelevant camera motion or repeated gestures as separate knowledge units."
         in prompt
     )
-    assert "The recording lasts 4321 ms" in prompt
-    assert "0 <= start_ms < end_ms <= 4321" in prompt
+    assert "The recording lasts 0:04;" in prompt
+    assert "MM:SS video timestamps" in prompt
+    assert "The recording lasts 3:50;" in build_prompt(task, 230030, True)
     assert (
         "This recording has no audio track. Do not report spoken content; "
         'use source_modality "visual".' in prompt
