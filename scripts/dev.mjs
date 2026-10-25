@@ -1,5 +1,20 @@
-import { spawn } from 'node:child_process';
+import { spawn, execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+
+if (process.platform === 'win32') {
+  try {
+    const regOut = execSync('reg query HKCU\\Environment /v Path', { stdio: ['ignore', 'pipe', 'ignore'] }).toString();
+    const match = regOut.match(/Path\s+REG_\w+\s+(.*)/i);
+    if (match?.[1]) {
+      const paths = match[1].trim().split(';').filter(Boolean);
+      for (const p of paths) {
+        if (!process.env.PATH?.includes(p)) {
+          process.env.PATH = `${process.env.PATH};${p}`;
+        }
+      }
+    }
+  } catch {}
+}
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const children = [

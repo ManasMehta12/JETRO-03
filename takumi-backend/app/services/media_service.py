@@ -197,6 +197,12 @@ def remove_stored_files(settings, storage_keys: list[str]) -> None:
 def get_visible_media(session, media_id, user) -> MediaAsset:
     media = session.get(MediaAsset, media_id)
     if media is not None and user.role == "apprentice":
+        from app.learning.service import active_release, course_video
+
+        _, release = active_release(session)
+        uploaded_course_video = course_video(session) if release else None
+        if uploaded_course_video is not None and uploaded_course_video.id == media.id:
+            return media
         snapshots = session.scalars(
             select(Release.evidence_snapshot).where(Release.task_id == media.task_id)
         )

@@ -28,7 +28,7 @@ class AnalysisRequest(RequestModel):
 
 class ApproveRequest(RequestModel):
     expected_revision: int = Field(ge=1)
-    proposal_ids: list[str] = Field(min_length=1, max_length=12)
+    proposal_ids: list[str] = Field(min_length=1, max_length=60)
     defer_unanswered: bool = False
     approval_note: str = Field(min_length=1, max_length=2000, pattern=r"\S")
 
