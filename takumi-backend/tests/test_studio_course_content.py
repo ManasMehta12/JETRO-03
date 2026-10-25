@@ -93,13 +93,16 @@ def test_script_and_notes_are_persisted_versioned_and_reset_with_task(make_clien
         )
         assert reset.status_code == 200
         assert client.get(BASE + "/analysis/config", headers=headers).json()["course_content"] == {
-            "version": 0,
+            "version": 3,
             "script_text": "",
             "script_filename": "",
             "review_notes": "",
             "video": None,
             "available": False,
         }
+        # A tab opened before the reset still holds version 2; it must not overwrite new sources.
+        assert save_content(client, headers, 3, script_text="After reset").status_code == 200
+        assert save_content(client, headers, 2, script_text="Pre-reset tab").status_code == 409
 
 
 @pytest.mark.parametrize("include", [True, False])

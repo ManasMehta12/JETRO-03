@@ -153,6 +153,44 @@ def test_empty_workspace_can_extract_and_save_new_units(make_client, monkeypatch
         assert client.get(BASE, headers=headers).json()["active_release"] is None
 
 
+def test_saved_units_keep_extraction_order_regardless_of_selection_order(make_client, monkeypatch):
+    actions = ["First record the observation.", "Then ask the instructor to review it."]
+
+    class Agents:
+        def __init__(self, settings):
+            pass
+
+        def initial(self, notes):
+            return InitialExtraction(
+                units=[InitialUnit(action=action, rationale="Stated.") for action in actions]
+            )
+
+        def critique(self, notes, proposals):
+            return Critique(passed=True, issues=[], summary="Exact source extracts.")
+
+    monkeypatch.setattr(studio_analysis_service, "StudioAgents", Agents)
+    with make_client(demo_seed_state="approved_baseline", gemini_api_key="test-key") as client:
+        headers = auth(client, "expert")
+        assert reset(client, headers, 2).status_code == 200
+        run = client.post(
+            BASE + "/analysis",
+            headers=headers,
+            json={"expected_revision": 3, "mode": "live", "source_notes": " ".join(actions)},
+        ).json()
+        assert run["status"] == "ready", run
+        saved = client.post(
+            BASE + f"/analysis/{run['id']}/apply",
+            headers=headers,
+            json={
+                "expected_revision": 3,
+                "approval_note": "Reviewed source extracts.",
+                "proposal_ids": [p["id"] for p in reversed(run["proposals"])],
+            },
+        )
+        assert saved.status_code == 200, saved.text
+        assert [u["action"] for u in saved.json()["draft"]["knowledge_units"]] == actions
+
+
 def test_reset_removes_task_files_and_linked_progress_only(make_client):
     from app.database import utcnow
     from app.learning.models import Enrollment, ManualCompletion

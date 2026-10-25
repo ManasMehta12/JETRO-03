@@ -405,8 +405,9 @@ def apply_reviewed(session, task_id, run_id, req, user):
     if (not units or run.evaluation.get("replace_draft")) and run.evaluation.get(
         "initial_extraction"
     ):
-        chosen = [proposals[proposal_id] for proposal_id in req.proposal_ids]
-        for unit_id in {proposal["knowledge_unit_id"] for proposal in chosen}:
+        # Run order, not selection order: the review preview renders units in run order.
+        chosen = [p for p in run.proposals if p["id"] in req.proposal_ids]
+        for unit_id in dict.fromkeys(proposal["knowledge_unit_id"] for proposal in chosen):
             if not any(
                 p["knowledge_unit_id"] == unit_id and p["field"] == "action" for p in chosen
             ):

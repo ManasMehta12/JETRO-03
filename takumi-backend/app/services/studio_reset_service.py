@@ -59,9 +59,13 @@ def reset(session, task_id, expected_revision):
     task.status = "draft"
     task.updated_at = utcnow()
     session.flush()
+    if saved := session.get(StudioCourseContent, task_id):
+        # Keep the version monotonic so pre-reset tabs cannot overwrite post-reset sources.
+        saved.script_text = saved.script_filename = saved.review_notes = ""
+        saved.version += 1
+        saved.updated_at = utcnow()
     for model in (
         StudioAnalysisRun,
-        StudioCourseContent,
         StudioAudit,
         StudioAuthorization,
         StudioEvaluation,
