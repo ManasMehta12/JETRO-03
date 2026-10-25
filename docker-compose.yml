@@ -44,10 +44,63 @@ services:
       api:
         condition: service_healthy
     restart: unless-stopped
+  takumi-api:
+    build:
+      context: .
+      dockerfile: deploy/takumi.Dockerfile
+    env_file:
+      - path: takumi-backend/.env
+        required: false
+    environment:
+      DATABASE_URL: sqlite:////data/takumi.db
+      MEDIA_STORAGE_DIR: /data/media
+    volumes:
+      - takumi-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    expose:
+      - "8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/v1/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+  takumi-worker:
+    build:
+      context: .
+      dockerfile: deploy/takumi.Dockerfile
+    profiles: ["takumi-worker"]
+    command: ["python", "scripts/run_worker.py"]
+    env_file:
+      - path: takumi-backend/.env
+        required: false
+    environment:
+      DATABASE_URL: sqlite:////data/takumi.db
+      MEDIA_STORAGE_DIR: /data/media
+    volumes:
+      - takumi-data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      takumi-api:
+        condition: service_healthy
+    restart: unless-stopped
+  playground:
+    build:
+      context: .
+      dockerfile: deploy/playground.Dockerfile
+    expose:
+      - "80"
+    depends_on:
+      takumi-api:
+        condition: service_healthy
+    restart: unless-stopped
   proxy:
     image: caddy:2.10-alpine
     ports:
       - "8080:80"
+      - "8081:8081"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
@@ -55,8 +108,11 @@ services:
     depends_on:
       - web
       - api
+      - playground
+      - takumi-api
     restart: unless-stopped
 volumes:
   viva-data:
+  takumi-data:
   caddy-data:
   caddy-config:

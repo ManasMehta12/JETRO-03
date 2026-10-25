@@ -1,3 +1,11 @@
+(security_headers) {
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        Permissions-Policy "camera=(), microphone=(self)"
+    }
+}
+
 :80 {
     handle /api/* {
         reverse_proxy api:8000
@@ -5,9 +13,15 @@
     handle {
         reverse_proxy web:3000
     }
-    header {
-        X-Content-Type-Options nosniff
-        Referrer-Policy same-origin
-        Permissions-Policy "camera=(), microphone=(self)"
+    import security_headers
+}
+
+:8081 {
+    handle /api/* {
+        reverse_proxy takumi-api:8001
     }
+    handle {
+        reverse_proxy playground:80
+    }
+    import security_headers
 }

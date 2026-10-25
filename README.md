@@ -46,7 +46,9 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Open `http://localhost:8080`. Compose runs a Next.js frontend, FastAPI API, separate evaluation worker, and Caddy reverse proxy. SQLite and media share the persistent `viva-data` volume. `docker compose down` preserves the database; `down -v` removes it and must only be used for disposable demos.
+Open `http://localhost:8080` for the Technical Viva. Compose runs a Next.js frontend, FastAPI API, separate evaluation worker, and Caddy reverse proxy. SQLite and media share the persistent `viva-data` volume. `docker compose down` preserves the database; `down -v` removes it and must only be used for disposable demos.
+
+The same `docker compose up --build` also serves the apprentice playground and the Takumi knowledge engine on `http://localhost:8081` (`/`, `/studio`, `/studio/admin`; `/api/*` goes to `takumi-api`). They use a second origin because both apps own `/` and `/api/v1/studio/...` paths. `takumi-api` reads `takumi-backend/.env` when it exists (optional), stores SQLite and media in the `takumi-data` volume, and reaches host services such as Ollama or whisper at `http://host.docker.internal:<port>` (bind them to `0.0.0.0`). The video-processing worker needs live-AI settings, so it is opt-in: `docker compose --profile takumi-worker up -d`.
 
 The supplied proxy is for local development. For remote microphone access, serve a real hostname over HTTPS: replace the `:80` site in `deploy/Caddyfile` with that hostname, publish ports 80/443, and configure DNS. Configure the backend's allowed origin to match the browser origin. Do not expose a public deployment with the seeded demo tokens. Non-demo configuration must disable seeding (`VIVA_SEED_DEMO=false`), set `VIVA_DEMO_TOKENS={}`, and configure the OIDC issuer/audience/HTTPS JWKS URL. Production authentication accepts RS256-signed OIDC JWTs with required identity/expiry claims, tenant identity, and application roles; static tokens are disabled.
 

@@ -8,6 +8,7 @@ Takumi: expert knowledge capture → reviewed release → apprentice training. T
 - `takumi-backend/` — FastAPI + SQLite knowledge engine (tasks, drafts, clarifications, evidence, immutable releases, training pack, grounded Q&A).
 - `backend/`, `frontend/`, `deploy/`, `docker-compose.yml`, `pytest.ini`, `scripts/verify.sh` — Technical Viva app (branch `Manas`); see root `README.md`. Separate from `takumi-backend/`; Viva uses port 8000, the knowledge engine 8001.
 - `src/`, `e2e/`, `index.html`, `package.json`, `vite.config.ts`, `playwright.config.ts`, `scripts/{dev,demo-preflight,create-test-video}.mjs`, `audits/` — apprentice learning playground, 3D bearing simulation and Studio admin UI (Vite + React + three.js, branch `aakrit`); see `PLAYGROUND.md` (root `README.md` on `himanish`). It calls `takumi-backend` `/api/v1/learning` and `/api/v1/studio` through the Vite `/api` proxy (`VITE_API_TARGET`, default `http://127.0.0.1:8001`); `npm run dev` starts the knowledge engine on 8001.
+- Docker: `docker compose up --build` runs Viva on `:8080` and the playground + knowledge engine on `:8081` (separate origins: both own `/` and `/api/v1/studio/...`). Images: `deploy/{backend,frontend,takumi,playground}.Dockerfile`; routing only in `deploy/Caddyfile`; root `.dockerignore` keeps `.env`, `.venv`, `data/` out. `takumi-api` reads optional `takumi-backend/.env`, data in volume `takumi-data`; worker is opt-in via `--profile takumi-worker`.
 
 ## Contracts
 - Canonical API contract: `markdowns/hackathon/openapi/API.doc.md`.
