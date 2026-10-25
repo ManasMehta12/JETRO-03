@@ -82,6 +82,27 @@ class VideoExtractionResult(BaseModel):
     processing_warnings: list[str] = Field(default_factory=list)
 
 
+class GeminiStep(BaseModel):
+    """Gemini video step; the provider converts MM:SS text to ExtractedStep milliseconds."""
+
+    start: str
+    end: str
+    action: str
+    cue: str | None = None
+    interpretation: str | None = None
+    decision: str | None = None
+    exception: str | None = None
+    source_modality: Literal["visual", "spoken", "visual_and_spoken"]
+    evidence_description: str | None = None
+
+
+class GeminiVideoResult(BaseModel):
+    task_summary: str
+    detected_language: str | None = None
+    steps: list[GeminiStep] = Field(default_factory=list)
+    processing_warnings: list[str] = Field(default_factory=list)
+
+
 class ProviderFile(BaseModel):
     name: str
     uri: str

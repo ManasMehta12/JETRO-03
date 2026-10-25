@@ -3,7 +3,7 @@ import json
 
 from app.ai.schemas import TaskContext
 
-PROMPT_VERSION = "video_extraction_v2"
+PROMPT_VERSION = "video_extraction_v3"
 
 INSTRUCTIONS = """You are analyzing a demonstration of a technical or workshop task.
 
@@ -49,9 +49,10 @@ def build_prompt(task: TaskContext, duration_ms: int, has_audio: bool) -> str:
         f"{INSTRUCTIONS}\n\nTask context: {context}\n"
         "The model may use this context to interpret terminology but must not invent "
         "observations because they are expected.\n"
-        "Timestamps are integer milliseconds from the start of the recording. "
-        f"The recording lasts {duration_ms} ms; every interval must satisfy "
-        f"0 <= start_ms < end_ms <= {duration_ms}.\n"
+        "Write each step's start and end as MM:SS video timestamps, for example "
+        '"0:07" or "2:34", counted from the start of this video file. '
+        f"The recording lasts {duration_ms // 60000}:{duration_ms // 1000 % 60:02d}; "
+        "every interval must start before it ends and must not go past that length.\n"
         "Prefer a small number (about 3–10) of meaningful actions or decision points; "
         "never invent steps to reach a count."
     )

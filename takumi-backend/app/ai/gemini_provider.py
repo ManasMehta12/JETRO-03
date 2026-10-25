@@ -10,7 +10,36 @@ from pydantic import ValidationError
 
 from app.ai.base import ProviderError
 from app.ai.prompts.video_extraction_v1 import PROMPT_VERSION, build_prompt
-from app.ai.schemas import ProviderFile, TaskContext, VideoExtraction, VideoExtractionResult
+from app.ai.schemas import (
+    ExtractedStep,
+    GeminiVideoResult,
+    ProviderFile,
+    TaskContext,
+    VideoExtraction,
+    VideoExtractionResult,
+)
+
+_TIMESTAMP = re.compile(r"(\d{1,3}):([0-5]\d)(?:\.(\d{1,3}))?")
+
+
+def _to_ms(value: str) -> int:
+    match = _TIMESTAMP.fullmatch(value.strip())
+    if not match:
+        raise ValueError(f"Invalid MM:SS timestamp: {value!r}")
+    minutes, seconds, fraction = match.groups()
+    return (int(minutes) * 60 + int(seconds)) * 1000 + int((fraction or "0").ljust(3, "0"))
+
+
+def _to_result(raw: GeminiVideoResult) -> VideoExtractionResult:
+    steps = [
+        ExtractedStep(
+            start_ms=_to_ms(step.start),
+            end_ms=_to_ms(step.end),
+            **step.model_dump(exclude={"start", "end"}),
+        )
+        for step in raw.steps
+    ]
+    return VideoExtractionResult(**raw.model_dump(exclude={"steps"}), steps=steps)
 
 
 def _retry_delay(details) -> float | None:
@@ -137,12 +166,12 @@ class GeminiAIProvider:
                 ],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    response_schema=VideoExtractionResult,
+                    response_schema=GeminiVideoResult,
                     temperature=0,
                 ),
             )
             try:
-                result = VideoExtractionResult.model_validate_json(response.text or "")
+                result = _to_result(GeminiVideoResult.model_validate_json(response.text or ""))
             except (ValidationError, ValueError):
                 raise ProviderError(
                     "AI_RESPONSE_INVALID", "Model output did not match the extraction schema.", True
