@@ -21,7 +21,7 @@ Observed checkpoint evidence is recorded below. Implementation is not proof of s
 - Successful extraction evidence: on a temporary database, the real worker path (`run_once` + `GeminiAIProvider`) processed a 25.8 s synthetic narrated MP4 (espeak-ng voice, captioned flat-colour frames, four inspection steps at known times) in 14.6 s, one attempt, no warnings. It produced 4 knowledge units with video evidence intervals within 0.7 s of the spoken segments and 3 clarification questions. Usage: 2,682 prompt tokens (2,363 video), 528 output tokens. Weakness: on-screen captions were copied into `cue`. Mocked-provider tests still cover draft/evidence/clarification persistence.
 - Retry and recovery results: passing mocked-provider suite covers retry, provider-file reuse, invalid-output retry-once, timeout exhaustion and lease recovery. No live-provider retry/recovery claim is made.
 - V1 integration results: passing suite includes fixture and mocked-extraction integration. Real-server fixture CLI/reset regression is reserved for final verification below.
-- Real-server smoke: existing v2 database at `/tmp/takumi_v2.db` upgraded in place; health reported schema version 3. New task/upload returned 201. Live processing with fixture provider returned 503 `AI_PROVIDER_UNAVAILABLE`, with required configuration list `[AI_PROVIDER=gemini, ENABLE_LIVE_EXTRACTION=true, GEMINI_API_KEY, GEMINI_MODEL]`. Demo processing returned 422 `FIXTURE_NOT_AVAILABLE`. Playback remained 200 after failed processing. Unknown job returned 404 `PROCESSING_JOB_NOT_FOUND`.
+- Historical C5 real-server smoke: existing v2 database at `/tmp/takumi_v2.db` upgraded in place; health reported schema version 3 at that checkpoint (current code uses schema version 7). New task/upload returned 201. Live processing with fixture provider returned 503 `AI_PROVIDER_UNAVAILABLE`, with required configuration list `[AI_PROVIDER=gemini, ENABLE_LIVE_EXTRACTION=true, GEMINI_API_KEY, GEMINI_MODEL]`. Demo processing returned 422 `FIXTURE_NOT_AVAILABLE`. Playback remained 200 after failed processing. Unknown job returned 404 `PROCESSING_JOB_NOT_FOUND`.
 - Worker without `ENABLE_PROCESSING_WORKER` returned exit 2 and `ENABLE_PROCESSING_WORKER is false`.
 
 ## Testing
@@ -32,7 +32,7 @@ Observed checkpoint evidence is recorded below. Implementation is not proof of s
 - C5 commands: `uv run pytest -q` — 192 passed, 1 skipped; `uv run ruff check .` and `uv run ruff format --check .` clean.
 - Tests failed: none in those checkpoint gate results.
 - Tests skipped: `tests/test_gemini_live.py`, opt-in, no key.
-- Live integration status: media HTTP smoke verified; successful Gemini extraction **unverified**.
+- Live integration status: media HTTP smoke and successful Gemini extraction verified on an earlier synthetic narrated clip and the Navy clip in Final acceptance (§26). Quality is promising, not validated.
 - Smoke server used `ENABLE_MEDIA_UPLOAD=true`, `ENABLE_MEDIA_STREAMING=true`, `DATABASE_URL=sqlite:////tmp/takumi_v2.db`, `MEDIA_STORAGE_DIR=/tmp/takumi_media`; generated video used ffmpeg.
 - Opt-in live command (not executed successfully):
   ```sh
@@ -57,20 +57,20 @@ Observed checkpoint evidence is recorded below. Implementation is not proof of s
 
 ## Outstanding work
 
-- Live extraction is verified only on a synthetic narrated clip. Real expert recordings, visual-only actions and other models remain unverified. Saved job `usage` covers only the successful attempt; reconcile retries against provider billing.
+- Live Gemini extraction is verified on a synthetic narrated clip and one Navy training film excerpt. Broader recording coverage, visual-only action quality and other Gemini models remain unverified. Quality is promising, not validated. Saved job `usage` covers only the successful attempt; reconcile retries against provider billing.
 
 ## Final verification
 
-All commands run from `backend/` after the docs/scripts wave.
+All commands run from `takumi-backend/`. Historical smoke results below are retained; Final acceptance (§26) records the latest run.
 
-- `uv run pytest -q` → 193 passed, 1 skipped (`tests/test_gemini_live.py`, opt-in; live Gemini unverified). Includes the post-review regression `test_unusable_output_is_not_checkpointed`: model output with no usable steps is no longer checkpointed, so the single retry re-asks the model.
+- Latest `uv run pytest -q` → 321 passed, 1 skipped (`tests/test_gemini_live.py`, opt-in). Coverage includes `test_unusable_output_is_not_checkpointed`: model output with no usable steps is not checkpointed, so the single retry re-asks the model. Live Gemini verification used the worker/script path, not the skipped opt-in test.
 - `uv run ruff check .` → no issues; `uv run ruff format --check .` → all files formatted.
 - `uv run python scripts/export_contracts.py` → OpenAPI, six schemas (`contracts/media.json`, `contracts/processing-job.json` new) and 16 examples; examples reverted because ids are random.
 - Fresh server with `ENABLE_MEDIA_UPLOAD/STREAMING/PROCESSING=true` and fixture provider, `uv run python scripts/video_flow.py --video /tmp/takumi_demo.mp4` (5 s h264+aac) printed `media_id=…`, `duration_ms=5000`, `range=206`, then `HTTP 503: … AI_PROVIDER_UNAVAILABLE … "required":["AI_PROVIDER=gemini","ENABLE_LIVE_EXTRACTION=true","GEMINI_API_KEY","GEMINI_MODEL"]`, exit 1 (expected: live not configured).
 - After that 503, the playback URL still streamed 200 (66281 bytes): media preserved. A text file named `fake.mp4` → 422 `INVALID_MEDIA`.
-- Default `.env` server on the existing schema-v1 `data/takumi.db`: started without error, `/api/v1/health` reported `schema_version` 3. `scripts/demo_flow.py` → `OK 1` … `OK 16`. `scripts/reset_demo.py --state fresh --yes` → `reset to fresh`, exit 0.
+- Historical smoke on the default-configuration server and existing schema-v1 `data/takumi.db`: startup succeeded and `/api/v1/health` reported `schema_version` 3 at that checkpoint (current code uses 7). `scripts/demo_flow.py` → `OK 1` … `OK 16`. `scripts/reset_demo.py --state fresh --yes` → `reset to fresh`, exit 0.
 - Worker preflight: invalid key → `PROCESSING_FAILED: AI provider request failed.`, exit 2, key not echoed; worker flag off → `ENABLE_PROCESSING_WORKER is false`, exit 2.
-- Not run: live Gemini extraction (no API key). Opt-in: `TAKUMI_LIVE_GEMINI=1 GEMINI_API_KEY=… GEMINI_MODEL=… TAKUMI_LIVE_VIDEO=/path/to.mp4 uv run pytest tests/test_gemini_live.py`.
+- Live Gemini extraction later succeeded on the synthetic clip and the Navy acceptance clip below. The opt-in pytest test remains skipped; its command is `TAKUMI_LIVE_GEMINI=1 GEMINI_API_KEY=… GEMINI_MODEL=… TAKUMI_LIVE_VIDEO=/path/to.mp4 uv run pytest tests/test_gemini_live.py`.
 
 ## Ollama transcript provider
 
@@ -103,3 +103,36 @@ OpenRouter replaces only Ollama's text extraction request. ffmpeg and whisper.cp
 - `nvidia/nemotron-3-super-120b-a12b:free`: provider 404 at test time; removed from the default list.
 - `openrouter/free` routed to `dots-studio/dots-3-note-preview:free`, which returned 0 steps; the worker treats that as retryable `AI_RESPONSE_INVALID`.
 - Not verified: whisper.cpp on the Mac, the full worker run with OpenRouter, Japanese transcripts.
+
+## Final acceptance (§26)
+
+### Run and media
+
+- Date: 2026-07. Local server and worker processes used isolated database `/tmp/takumi_accept.db` on port 8011.
+- Provider: `gemini`; model: `gemini-3.5-flash-lite`; prompt: `video_extraction_v2`.
+- Video: `navy-bearing-clip.mp4`, a US Navy bearing training film excerpt; licence not verified. Duration: 230 030 ms; size: 17.6 MB; codecs: h264/aac.
+- Upload succeeded. Range playback returned 206; full playback returned 200.
+- Observed job stages: `uploaded` (0 s) → `preparing_media` (2 s) → `extracting` (16 s) → `ready_for_review` / `completed` (24 s).
+
+### Extraction and human review
+
+- Extraction created 6 knowledge units. Five had valid video evidence. Unit `ku_288214e78eef` (master ring gauge measurement) had no evidence: the model returned 227000–250000 ms, beyond the media end.
+- Job warning: `INVALID_EVIDENCE_INTERVAL step 6 (227000-250000 ms): Video evidence interval exceeds media duration.`
+- Two clarifications were created. The expert answered `missing_reasoning`, creating `expert_response` evidence `ev_ba54f3c8f837` and updating the interpretation. The `beginner_mistake` clarification was deferred.
+- Studio evaluation failed as designed with `UNSUPPORTED_FIELD:action|cue|interpretation` on `ku_288214e78eef`. `scripts/video_flow.py` stopped with exit 1: `Evaluation failed: review flagged units before publishing`. This was the intended review gate: AI output never publishes without human review.
+- The reviewer rejected that unit through `PATCH /tasks/{id}/draft` with `operation: reject`, advancing revision 2→3. Re-evaluation passed with no issues. The remaining steps were then run manually with the same requests the script uses; this was not an uninterrupted successful script run.
+- Reviewer publication returned 201: `release_17de35601648`, version 1, active, with 5 units. Its training pack includes `ev_ba54f3c8f837`.
+
+### Apprentice Q&A
+
+- “Why do you show tilting pad bearing and precision insert split sleeve type bearing?” → `answered`; claims cite `ev_325f6d812391` and `ev_ba54f3c8f837`.
+- “Why record the identification numbers?” → `answered`, but with the same claims. Keyword matching picked the first unit; answer relevance is promising, not validated.
+- “What is the torque specification for this task?” → `insufficient_evidence`.
+
+### Usage and regression
+
+- Token usage is stored in `processing_jobs.usage`, not exposed by `GET /jobs/{id}`: prompt 20 612 (video 20 240, text 372), output 909, total 21 521.
+- Estimated cost: ≈ $0.0085 ≈ ₹0.80, using $0.30 per 1M input tokens, $2.50 per 1M output tokens and ₹95/USD.
+- Part F used the fixture provider on fresh database `/tmp/takumi_partf.db`. `scripts/demo_flow.py` completed `OK 1`–`OK 16`.
+- `uv run pytest -q`: 321 passed, 1 skipped (live Gemini test). `uv run ruff check .` and `uv run ruff format --check .` were clean.
+- This final acceptance used one live run and one clip only, in addition to the earlier synthetic-clip run. Quality is promising, not validated beyond this limited evidence.

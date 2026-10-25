@@ -1,22 +1,28 @@
 # Known limitations
 
 - `app/fixtures/shaft_bearing_v1.json` is illustrative hackathon content, not a validated mechanical procedure. Do not infer torque, tolerances, tactile claims or safe operating specifications from it.
-- Gemini video extraction, private media upload/streaming, durable `MediaAsset`/`ProcessingJob` tables and a separate worker are implemented. Live extraction with `gemini-3.5-flash-lite` succeeded on a synthetic narrated clip only (see `V2_CHECKPOINTS.md`); real expert recordings and visual-only actions are unverified. The worker extraction call sets no `max_output_tokens`.
+- Gemini video extraction, private media upload/streaming, durable `MediaAsset`/`ProcessingJob` tables and a separate worker are implemented. Live extraction with `gemini-3.5-flash-lite` succeeded on a synthetic narrated clip and one Navy training film excerpt (see `V2_CHECKPOINTS.md`). Broader recording coverage and visual-only action quality remain unverified; quality is promising, not validated. The worker extraction call sets no `max_output_tokens`.
 - Run a single worker for this hackathon deployment. Durable leases recover interrupted jobs; this is not a validated multi-worker deployment.
 - Uploads accept only MP4 containers with h264/av1 video; QuickTime is rejected. Inspection checks ffprobe metadata, not a full video decode. `ffprobe` must be installed; generated-video tests also need `ffmpeg` and skip without either tool.
-- Gemini timestamps are approximate and are not checked against video frames. Invalid intervals retain draft units without evidence and produce warnings; publication requires supported expert corrections. AI output is always unreviewed.
+- Gemini timestamps are approximate and are not checked against video frames. Invalid intervals retain draft units without evidence and produce warnings; publication requires supported expert corrections or rejection of unsupported units. AI output is always unreviewed.
 - Signed playback tokens can be reused for 10 minutes so seeking can make repeated range requests. They are scoped to one media ID, not single-use. Keep query tokens out of logs (`uvicorn --no-access-log`).
 - Chunked uploads without `Content-Length` are size-bounded only after multipart spooling. Declared lengths have an earlier middleware bound; temporary disk capacity remains an operational concern.
-- Processing requires a new task without a draft. `mode=demo` cannot analyze uploaded recordings; use the seeded V1 fixture flow instead.
+- Processing requires a new task without a draft. A task with an existing draft returns `DRAFT_ALREADY_EXISTS` and cannot be reprocessed; create a new task. `mode=demo` cannot analyze uploaded recordings; use the seeded V1 fixture flow instead.
 - Provider file deletion after success is best-effort; deletion errors do not fail completed jobs. Failed jobs retain provider file references and local media. No automatic media cleanup or raw extraction debug logging is implemented.
 - Live Q&A, live gaps, multilingual support, embeddings and advanced retrieval remain reserved; their flags and `LOG_MODEL_INPUTS` must stay false.
 - Demo HMAC tokens are not production identity. Without a non-empty `DEMO_SIGNING_SECRET`, the signing key lives only in process memory and restart invalidates tokens. Multiple processes need the same explicit secret. Production demo flags must all be false; production identity remains outside V1.
-- Q&A and gap detection stay deterministic even with `AI_PROVIDER=gemini`. Q&A is English-only keyword matching over approved snapshots, returns source-linked claims and abstains when requested facts are absent. It is not semantic retrieval.
-- SQLite supports a single writer. Every transaction starts with `BEGIN IMMEDIATE`, so requests are serialized (waiting up to the 5 s busy timeout); this keeps concurrent draft edits at 409 `REVISION_CONFLICT` and concurrent publishes idempotent, at the cost of read concurrency. Schema v1–v5 upgrades add tables and advance to v6; unsupported schema versions fail startup rather than dropping data. Back up databases before upgrades.
+- Q&A and gap detection stay deterministic even with `AI_PROVIDER=gemini`. Q&A is English-only keyword matching over approved snapshots, returns source-linked claims and abstains when requested facts are absent. It is not semantic retrieval. Keyword matching may answer an off-target question from the wrong unit, as observed in the Navy acceptance run; answer relevance is promising, not validated.
+- SQLite supports a single writer. Every transaction starts with `BEGIN IMMEDIATE`, so requests are serialized (waiting up to the 5 s busy timeout); this keeps concurrent draft edits at 409 `REVISION_CONFLICT` and concurrent publishes idempotent, at the cost of read concurrency. Schema v1–v6 upgrades add tables and advance to v7; unsupported schema versions fail startup rather than dropping data. Back up databases before upgrades.
 - No `validate_required_knowledge` endpoint exists. Simulation clients check required IDs against `training-pack.knowledge_units[].id`.
 - The integrated `/learning` routes handle current course progression, simulation replay, structured viva and learner reset. The older demo reset `scope: "attempts"` still returns `RESET_SCOPE_UNAVAILABLE`; use `/learning/reset`. A full fixture reset now clears learner tables and AI diagnosis runs as well.
 - Exported API examples contain real run IDs and timestamps, so regeneration changes those values. Auth tokens are redacted. Some of the 16 acceptance steps assert the preceding response rather than sending a new request; their example files repeat that request/response.
 - Current FastAPI/Starlette emits a TestClient deprecation warning for httpx. Tests still pass; dependency modernization is outside this checkpoint.
+- Model timestamps accept integer coercion from strings (for example, `"100"` → `100`); strict integer-only input is not enforced.
+- The `admin` role may upload media.
+- Experts may publish from Studio; publication is not reviewer-only.
+- A missing Gemini key fails at request time rather than startup.
+- Any expert can access any task; there is no per-expert task ownership.
+- Token usage is stored in `processing_jobs.usage` but is not exposed by `GET /jobs/{id}`.
 
 ## Integrated Studio diagnosis demo
 

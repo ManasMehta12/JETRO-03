@@ -4,7 +4,7 @@
 
 Extend the V1 knowledge engine without replacing clarify → publish → training-pack → ask.
 C4 implementation commit: `0672220`. C5 implementation commit: `9bd6d58`.
-Checkpoint gates and media smoke are verified; successful live Gemini extraction is **unverified** (no key available).
+Checkpoint gates, media smoke and live Gemini extraction are verified, including an earlier synthetic clip and the Navy clip final acceptance run. Quality is promising, not validated.
 See [docs/V2_CHECKPOINTS.md](docs/V2_CHECKPOINTS.md) for observed results, not inferred provider readiness.
 
 ## Fixed decisions
@@ -14,7 +14,7 @@ See [docs/V2_CHECKPOINTS.md](docs/V2_CHECKPOINTS.md) for observed results, not i
 - Validate metadata with ffprobe, size/duration limits and SHA-256. This is not full decode validation.
 - Playback uses bearer auth or a reusable 10-minute token scoped to one media ID. Apprentice access requires citation in any release snapshot of that task.
 - Task detail stays unchanged. Frontend retains `media_id` and `job_id` from upload/process responses.
-- Invalid model timestamps retain a knowledge unit without evidence and add warnings; never clamp. Publication remains blocked until expert corrections provide support.
+- Invalid model timestamps retain a knowledge unit without evidence and add warnings; never clamp. Publication remains blocked until human review supplies supported corrections or rejects unsupported units.
 - Schema-invalid output gets at most one automatic retry, bounded by the global retry limit, reusing the provider file.
 - Require explicit `GEMINI_MODEL` and `GEMINI_API_KEY`; no default model or fixture substitution for uploaded media.
 - Q&A and gap detection remain fixture-backed/deterministic, even with `AI_PROVIDER=gemini`.
@@ -30,13 +30,13 @@ See [docs/V2_CHECKPOINTS.md](docs/V2_CHECKPOINTS.md) for observed results, not i
 6. `app/ai/prompts/video_extraction_v1.py`: versioned extraction instructions, task context, timestamp and no-audio rules.
 7. `app/services/extraction_service.py`: validate units/evidence, deduplicate intervals and persist draft/revision/clarifications.
 
-## Schema v3 and transactions
+## Schema v7 and transactions
 
 `MediaAsset` stores private storage key, task/owner, filename, hash, size, duration, codec and dimensions.
 `ProcessingJob` stores task/media/mode/request identity, input hash, status/stage, attempts, lease, next attempt, provider file reference/state/expiry, extraction checkpoint, usage, warnings, errors and result draft ID.
 Unique `(task_id, media_id, mode, request_id)` makes duplicate requests idempotent, including completed jobs.
 
-Schema v1/v2 upgrades add missing tables through `create_all` and advance the schema stamp to 3.
+Schema v1–v6 upgrades add missing tables through `create_all` and advance the schema stamp to 7 (`app/database.py:SCHEMA_VERSION`).
 Unsupported schema versions fail startup; never discard existing databases automatically. Back up before upgrades.
 Every SQLite transaction starts `BEGIN IMMEDIATE`; keep DB work short.
 Services flush; routers/scripts/worker own commits. No ffprobe, file copying or Gemini calls run inside open transactions.
@@ -87,7 +87,7 @@ Live mode requires all relevant flags, real credentials and an explicit video-ca
 Server/worker share `DATABASE_URL`, `MEDIA_STORAGE_DIR` and settings.
 Polling defaults to 2 seconds, lease to 180 seconds, provider timeout to 120 seconds; lease must exceed timeout.
 
-Run from `backend/`, in separate terminals:
+Run from `takumi-backend/`, in separate terminals:
 ```sh
 uv run uvicorn app.main:app --port 8000 --no-access-log
 uv run python scripts/run_worker.py
@@ -96,4 +96,4 @@ uv run python scripts/video_flow.py --video demo.mp4
 
 Use `scripts/demo_flow.py` for the unchanged 16-step fixture path.
 Contract exporter retains the existing four schema files and 16 fixture examples and adds `contracts/media.json` and `contracts/processing-job.json`.
-No successful live extraction claim is valid until the opt-in real-key test succeeds.
+Live Gemini extraction succeeded through the worker/script path on a synthetic narrated clip and the Navy acceptance clip. Final regression: 321 passed, 1 skipped (opt-in live Gemini test); see [Final acceptance (§26)](docs/V2_CHECKPOINTS.md#final-acceptance-26) for the evaluation block, human rejection and manual completion.

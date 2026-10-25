@@ -12,7 +12,7 @@ cp .env.example .env
 ```
 
 Studio diagnosis uses `STUDIO_AI_MODEL` when set, then `GEMINI_MODEL`, then
-`gemini-flash-latest`. Set `STUDIO_AI_MODEL` to a model available to your key to
+`gemini-3.5-flash-lite`. Set `STUDIO_AI_MODEL` to a Gemini 3-series model available to your key to
 configure the Expert agents independently of video extraction. Restart the backend
 after changing `.env`. The local diagnosis configuration was verified with
 `STUDIO_AI_MODEL=gemini-3.5-flash-lite` and `STUDIO_AI_TIMEOUT_SECONDS=60`.
@@ -24,7 +24,7 @@ uv run uvicorn app.main:app --reload --port 8000 --no-access-log
 ```
 
 ## Database
-Startup creates SQLite tables, upgrades schema v1/v2 additively to v3 and installs the immutable-release UPDATE trigger. A new database automatically seeds `approved_baseline`, with `release_001` active. Existing `task_001` is never overwritten. Unsupported schema versions fail startup; back up before changing the database. Services flush; routers, lifespan, scripts and worker own transactions.
+Startup creates SQLite tables, upgrades schema v1–v6 additively to v7 and installs the immutable-release UPDATE trigger. A new database automatically seeds `approved_baseline`, with `release_001` active. Existing `task_001` is never overwritten. Unsupported schema versions fail startup; back up before changing the database. Services flush; routers, lifespan, scripts and worker own transactions.
 
 ## Demo
 ```sh
@@ -69,14 +69,14 @@ Set these values in the private `.env` used by both server and worker:
 ```dotenv
 AI_PROVIDER=gemini
 GEMINI_API_KEY=<your-key>
-GEMINI_MODEL=<video-capable-model-available-to-your-key>
+GEMINI_MODEL=<gemini-3-series-model-available-to-your-key>
 ENABLE_MEDIA_UPLOAD=true
 ENABLE_MEDIA_STREAMING=true
 ENABLE_MEDIA_PROCESSING=true
 ENABLE_LIVE_EXTRACTION=true
 ENABLE_PROCESSING_WORKER=true
 ```
-No model is selected by default. Model availability and successful live extraction remain unverified.
+No extraction model is selected by default. Live extraction with `gemini-3.5-flash-lite` succeeded on an earlier synthetic clip and the Navy clip in [Final acceptance (§26)](docs/V2_CHECKPOINTS.md#final-acceptance-26). The Navy run required human rejection of an unsupported unit before publication. Quality is promising, not validated.
 Start server and worker in separate terminals from `takumi-backend/`, sharing `DATABASE_URL`, `MEDIA_STORAGE_DIR` and configuration:
 ```sh
 uv run uvicorn app.main:app --port 8000 --no-access-log
