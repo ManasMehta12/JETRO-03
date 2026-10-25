@@ -2589,15 +2589,41 @@
             "type": "string",
             "title": "Knowledge Unit Id"
           },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "update",
+              "approve",
+              "reject"
+            ],
+            "title": "Operation",
+            "default": "update"
+          },
           "fields": {
-            "$ref": "#/components/schemas/KnowledgeFieldsPatch"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/KnowledgeFieldsPatch"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntervalCorrection"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "additionalProperties": false,
         "type": "object",
         "required": [
-          "knowledge_unit_id",
-          "fields"
+          "knowledge_unit_id"
         ],
         "title": "DraftChange"
       },
@@ -2894,6 +2920,32 @@
           "position_seconds"
         ],
         "title": "Heartbeat"
+      },
+      "IntervalCorrection": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          },
+          "start_ms": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Start Ms"
+          },
+          "end_ms": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "End Ms"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "start_ms",
+          "end_ms"
+        ],
+        "title": "IntervalCorrection"
       },
       "JobError": {
         "properties": {

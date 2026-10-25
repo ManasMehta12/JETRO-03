@@ -4,8 +4,9 @@ from sqlalchemy import select, update
 
 from app.core.errors import AppError
 from app.database import new_id, utcnow
-from app.models.entities import Clarification, Draft, DraftRevision, Evidence
+from app.models.entities import Clarification, Draft, DraftRevision, Evidence, MediaAsset
 from app.models.schemas import ClarificationOut, DraftOut, DraftPatchOut
+from app.services import evidence_service
 
 
 def get_draft(session, task_id):
@@ -88,7 +89,7 @@ def patch_draft(session, task_id, req, user):
     ids = [change.knowledge_unit_id for change in req.changes]
     if len(ids) != len(set(ids)):
         raise AppError("VALIDATION_ERROR", "Duplicate knowledge unit id in changes.", 422)
-    units = {unit["id"]: unit for unit in draft.knowledge_units}
+    units = {unit["id"]: deepcopy(unit) for unit in draft.knowledge_units}
     for unit_id in ids:
         if unit_id not in units:
             raise AppError(
@@ -100,6 +101,89 @@ def patch_draft(session, task_id, req, user):
     evidence_ids = []
     for change in req.changes:
         unit = units[change.knowledge_unit_id]
+        if change.operation == "reject":
+            del units[change.knowledge_unit_id]
+            session.execute(
+                update(Clarification)
+                .where(
+                    Clarification.task_id == task_id,
+                    Clarification.knowledge_unit_id == change.knowledge_unit_id,
+                    Clarification.status == "pending",
+                )
+                .values(
+                    status="premise_rejected",
+                    answer="Knowledge unit rejected during review.",
+                    answered_by=user.id,
+                    answered_at=utcnow(),
+                )
+            )
+            continue
+        if change.operation == "approve":
+            unsupported = [
+                field
+                for field in ("action", "cue", "interpretation", "decision", "exception")
+                if (field == "action" and not unit.get(field))
+                or (unit.get(field) is not None and not unit.get("field_evidence", {}).get(field))
+            ]
+            if unsupported:
+                raise AppError(
+                    "UNIT_NOT_APPROVABLE",
+                    "Knowledge unit has unsupported fields.",
+                    409,
+                    {"knowledge_unit_id": change.knowledge_unit_id, "fields": unsupported},
+                )
+            unit["review_status"] = "approved"
+            continue
+        if change.interval is not None:
+            interval = change.interval
+            old = session.get(Evidence, interval.evidence_id)
+            if (
+                old is None
+                or old.task_id != task_id
+                or old.type != "video_segment"
+                or old.id not in unit.get("evidence_ids", [])
+            ):
+                raise AppError(
+                    "INVALID_EVIDENCE",
+                    "Evidence is not a video segment cited by this knowledge unit.",
+                    422,
+                    {"evidence_id": interval.evidence_id},
+                )
+            duration = session.get(MediaAsset, old.media_id).duration_ms if old.media_id else None
+            problem = evidence_service.interval_problem(
+                interval.start_ms, interval.end_ms, duration
+            )
+            if problem:
+                raise AppError(
+                    "INVALID_EVIDENCE", problem, 422, {"evidence_id": interval.evidence_id}
+                )
+            evidence = Evidence(
+                id=new_id("ev"),
+                task_id=task_id,
+                type="video_segment",
+                author_id=user.id,
+                author_label=user.display_name,
+                source_label=old.source_label,
+                media_id=old.media_id,
+                start_ms=interval.start_ms,
+                end_ms=interval.end_ms,
+                content=(
+                    f"[Interval corrected by {user.display_name} from "
+                    f"{old.start_ms}-{old.end_ms} ms] {old.content or ''}"
+                ).strip(),
+            )
+            session.add(evidence)
+            evidence_ids.append(evidence.id)
+            unit["evidence_ids"] = [
+                evidence.id if item == old.id else item for item in unit["evidence_ids"]
+            ]
+            unit["field_evidence"] = {
+                field: [evidence.id if item == old.id else item for item in support]
+                for field, support in unit.get("field_evidence", {}).items()
+            }
+            unit["review_status"] = "draft"
+        if change.fields is None:
+            continue
         fields = {
             field: value
             for field, value in change.fields.model_dump(exclude_unset=True).items()

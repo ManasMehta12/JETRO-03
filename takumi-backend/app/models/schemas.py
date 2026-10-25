@@ -172,9 +172,26 @@ class KnowledgeFieldsPatch(RequestModel):
         return self
 
 
+class IntervalCorrection(RequestModel):
+    evidence_id: str
+    start_ms: int = Field(ge=0)
+    end_ms: int = Field(gt=0)
+
+
 class DraftChange(RequestModel):
     knowledge_unit_id: str
-    fields: KnowledgeFieldsPatch
+    operation: Literal["update", "approve", "reject"] = "update"
+    fields: KnowledgeFieldsPatch | None = None
+    interval: IntervalCorrection | None = None
+
+    @model_validator(mode="after")
+    def validate_operation(self):
+        if self.operation == "update":
+            if self.fields is None and self.interval is None:
+                raise ValueError("An update requires fields or an interval.")
+        elif self.fields is not None or self.interval is not None:
+            raise ValueError("Approval and rejection cannot include fields or an interval.")
+        return self
 
 
 class DraftPatch(RequestModel):
