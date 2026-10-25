@@ -1,10 +1,21 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey
+from sqlalchemy import JSON, DateTime, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, utcnow
+
+
+class StudioCourseContent(Base):
+    __tablename__ = "studio_course_content"
+    task_id: Mapped[str] = mapped_column(ForeignKey("tasks.id"), primary_key=True)
+    version: Mapped[int] = mapped_column(default=1)
+    script_text: Mapped[str] = mapped_column(Text, default="")
+    script_filename: Mapped[str] = mapped_column(default="")
+    review_notes: Mapped[str] = mapped_column(Text, default="")
+    updated_by: Mapped[str]
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
 class StudioEvaluation(Base):

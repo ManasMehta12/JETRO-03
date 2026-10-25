@@ -56,6 +56,39 @@ test('admin renders patches and evaluation returned by the live agent API', asyn
   await expect(page.getByText('Independent agent found direct source support.', { exact: true })).toBeVisible();
   await expect(page.locator('.studio-run-state')).toContainText('AI agent run');
   await expect(page.locator('.studio-proposal')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Expert review', exact: true }).click();
+  await page.locator('.studio-unit').nth(2).click();
+  await expect(page.getByLabel('Extracted proposals for selected unit')).toContainText(source);
+  await expect(page.getByLabel('Extracted proposals for selected unit')).toContainText('Extracted from current instructor notes.');
+});
+
+test('review saves extracted fields with provenance and audit records without publishing', async ({ page }) => {
+  await resetDemo(page.request);
+  await page.goto('/studio');
+  await page.getByRole('combobox', { name: 'Analysis mode' }).selectOption('rehearsal');
+  await page.getByRole('button', { name: 'Run illustrative rehearsal', exact: true }).click();
+  await expect(page.getByText('Patch evaluation passed', { exact: true })).toBeVisible();
+  const proposed = await page.locator('.studio-diff > div').last().locator('p').textContent();
+  await page.getByRole('button', { name: 'Expert review', exact: true }).click();
+  await page.locator('.studio-unit').nth(1).click();
+  const review = page.getByLabel('Extracted proposals for selected unit');
+  await expect(review).toContainText(proposed!);
+  await expect(page.getByRole('textbox', { name: 'Exception / limits', exact: true })).not.toHaveValue(proposed!);
+  await page.getByRole('textbox', { name: 'AI review note', exact: true }).fill('Reviewed this exact source quote before updating the draft.');
+  await page.getByRole('button', { name: /Save .* selected extracted change.* to draft/ }).click();
+  await expect(page.getByLabel('Studio status')).toContainText('Reviewed extracted fields saved to draft');
+  await expect(page.getByRole('textbox', { name: 'Exception / limits', exact: true })).toHaveValue(proposed!);
+  await expect(page.getByText('Version 1', { exact: true })).toBeVisible();
+  await expect(page.locator('.studio-field-provenance').last()).toContainText('Illustrative source');
+  await page.getByRole('button', { name: 'Publication audit', exact: true }).click();
+  const history = page.getByLabel('Diagnosis history');
+  await history.locator('.studio-history-run > summary').first().click();
+  await expect(history).toContainText('applied');
+  await expect(history).toContainText(proposed!);
+  await expect(history).toContainText('Authored rehearsal: source checks passed. Expert review required.');
+  await expect(page.getByRole('cell', { name: 'analysis saved to draft', exact: true })).toBeVisible();
+  await expect(page.getByRole('table')).toContainText('Reviewed this exact source quote before updating the draft.');
+  await page.screenshot({ path: 'test-results/extracted-review-audit.png', fullPage: true });
 });
 
 test('one diagnosis action proposes evaluated patches; approval updates apprentice course and viva without an admin grant', async ({ page, context }) => {
@@ -123,4 +156,108 @@ test('a clarification response explicitly updates its selected tacit field', asy
   await clarification.getByRole('button', { name: 'Record expert response' }).click();
   await expect(page.getByRole('textbox', { name: 'Decision', exact: true })).toHaveValue('Keep the observation pending an instructor review.');
   await expect(page.getByLabel('Studio status')).toContainText('Expert response recorded');
+});
+
+test('Expert reset requires confirmation and leaves all three panels empty after reload', async ({ page }) => {
+  await resetDemo(page.request);
+  await page.goto('/studio');
+  await page.getByRole('combobox', { name: 'Analysis mode' }).selectOption('rehearsal');
+  await page.getByRole('button', { name: 'Run illustrative rehearsal', exact: true }).click();
+  await expect(page.getByText('Patch evaluation passed', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Reset Expert data', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Reset all Expert panel data?' });
+  await expect(dialog).toContainText('All published releases');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.locator('.studio-proposal')).toHaveCount(1);
+  await expect(page.getByText('Version 1', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Expert review', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Action', exact: true }).fill('Unsaved edit to discard on reset.');
+  await page.getByRole('button', { name: 'Reset Expert data', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Reset all data', exact: true }).click();
+  await expect(page.getByLabel('Studio status')).toContainText('Expert panel data reset');
+  await expect(page.getByRole('textbox', { name: 'Course script', exact: true })).toHaveValue('');
+  await expect(page.locator('.studio-proposal')).toHaveCount(0);
+  await expect(page.getByText('Unpublished', { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Course script', exact: true })).toHaveValue('');
+  await page.getByRole('button', { name: 'Expert review', exact: true }).click();
+  await expect(page.locator('.studio-unit')).toHaveCount(0);
+  await expect(page.getByText('No knowledge units yet.', { exact: false })).toBeVisible();
+  await page.getByRole('button', { name: 'Publication audit', exact: true }).click();
+  await expect(page.getByText('No diagnosis runs recorded for this task.', { exact: true })).toBeVisible();
+  await expect(page.getByText('No workflow events recorded for this task.', { exact: true })).toBeVisible();
+  await expect(page.getByText('No release published.', { exact: true })).toBeVisible();
+  await page.screenshot({ path: 'test-results/expert-reset-empty.png', fullPage: true });
+});
+
+test('course source UI uses uploaded video and script automatically and includes review notes on request (mocked agents and media)', async ({ page }) => {
+  await resetDemo(page.request);
+  const script = 'Record the visible condition before making a decision.';
+  const notes = 'Ask the expert to explain the reason for the pause.';
+  let uploadedVideo: null | { id: string; filename: string; duration_ms: number; sha256: string } = null;
+  let hashes = { with_review_notes: '', without_review_notes: '' };
+  let revision = 2;
+  let calls = 0;
+  await page.route('**/api/v1/tasks/*/media', async route => {
+    expect(route.request().headers()['content-type']).toContain('multipart/form-data');
+    expect(route.request().postDataBuffer()?.toString()).toContain('course.mp4');
+    uploadedVideo = { id: 'uploaded_course_video', filename: 'course.mp4', duration_ms: 3000, sha256: 'test-video-hash' };
+    await route.fulfill({ json: { media_id: uploadedVideo.id } });
+  });
+  await page.route('**/api/v1/studio/workspace', async route => {
+    const workspace = await (await route.fetch()).json();
+    workspace.analysis.mode = 'live';
+    workspace.analysis.media_upload_enabled = true;
+    workspace.analysis.course_content.video = uploadedVideo;
+    workspace.analysis.course_content.available ||= !!uploadedVideo;
+    hashes = workspace.analysis.course_source_hashes;
+    revision = workspace.overview.draft.revision;
+    await route.fulfill({ json: workspace });
+  });
+  await page.route('**/api/v1/studio/tasks/*/analysis', async route => {
+    const request = route.request().postDataJSON();
+    expect(request.use_course_content).toBe(true);
+    expect(request.source_notes).toBeUndefined();
+    calls++;
+    await route.fulfill({ json: {
+      id: `course_extraction_${calls}`, task_id: 'task_001', revision, mode: 'live',
+      status: 'ready', stage: 'ready_for_review', model: 'test-multimodal-agent',
+      source_notes: `${script}\n${request.include_review_notes ? notes : ''}`,
+      proposals: [{ id: 'course_action', knowledge_unit_id: 'extracted_course_unit', field: 'action',
+        before: null, after: script, source_quote: script, rationale: 'Extracted from the saved course script.',
+        video_evidence: { media_id: uploadedVideo!.id, start_ms: 100, end_ms: 800, modality: 'visual' } }],
+      evaluation: { passed: true, issues: [], summary: request.include_review_notes ? 'Video, script and expert notes reviewed.' : 'Video and script reviewed; expert notes excluded.', replace_draft: true,
+        source_manifest: { input_hash: request.include_review_notes ? hashes.with_review_notes : hashes.without_review_notes, include_review_notes: request.include_review_notes, video: uploadedVideo, script_filename: 'course-script.txt' } },
+      error: null, release_id: null,
+    } });
+  });
+  await page.goto('/studio');
+  await page.getByLabel('Upload course video', { exact: true }).setInputFiles({ name: 'course.mp4', mimeType: 'video/mp4', buffer: Buffer.from('mocked-media-transport') });
+  await expect(page.getByText('course.mp4 · 3.0 seconds', { exact: true })).toBeVisible();
+  await page.getByLabel('Upload course script', { exact: true }).setInputFiles({ name: 'course-script.txt', mimeType: 'text/plain', buffer: Buffer.from(script) });
+  await expect(page.getByText('Saved script: course-script.txt', { exact: true })).toBeVisible();
+  await expect(page.getByRole('checkbox', { name: 'Use uploaded course video and script automatically' })).toBeChecked();
+  await page.getByRole('button', { name: 'Expert review', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Expert review notes', exact: true }).fill(notes);
+  await page.getByRole('button', { name: 'Save expert notes', exact: true }).click();
+  await expect(page.getByLabel('Studio status')).toContainText('Expert notes saved');
+  await page.getByRole('button', { name: 'Review course extraction options', exact: true }).click();
+  await page.getByRole('button', { name: 'Run AI diagnosis', exact: true }).click();
+  await expect(page.getByText('Video, script and expert notes reviewed.', { exact: true })).toBeVisible();
+  await expect(page.locator('.studio-proposal')).toContainText('Video evidence: 0.1');
+  await page.getByRole('button', { name: 'Expert review', exact: true }).click();
+  await expect(page.locator('.studio-unit')).toHaveCount(1);
+  await expect(page.getByRole('textbox', { name: 'Action', exact: true })).toHaveValue(script);
+  await expect(page.getByRole('textbox', { name: 'Action', exact: true })).not.toBeEditable();
+  await expect(page.getByRole('textbox', { name: 'Expert review notes', exact: true })).toHaveValue(notes);
+  await page.getByRole('textbox', { name: 'AI review note', exact: true }).fill('Checked the sources.');
+  const save = page.getByRole('button', { name: /Save .* selected extracted change.* to draft/ });
+  await expect(save).toBeEnabled();
+  await page.screenshot({ path: 'test-results/course-extraction-review.png', fullPage: true });
+  await page.getByRole('checkbox', { name: 'Include saved expert review notes in course extraction' }).uncheck();
+  await expect(save).toBeDisabled();
+  await page.getByRole('button', { name: 'Review course extraction options', exact: true }).click();
+  await page.getByRole('button', { name: 'Run AI diagnosis', exact: true }).click();
+  await expect(page.getByText('Video and script reviewed; expert notes excluded.', { exact: true })).toBeVisible();
+  expect(calls).toBe(2);
 });

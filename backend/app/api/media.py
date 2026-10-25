@@ -27,7 +27,7 @@ def upload_media(
     request: Request,
     session: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
-    user: Annotated[CurrentUser, Depends(require_roles("expert", "reviewer"))],
+    user: Annotated[CurrentUser, Depends(require_roles("expert", "reviewer", "admin"))],
     file: Annotated[UploadFile, File()],
 ):
     if not settings.enable_media_upload:

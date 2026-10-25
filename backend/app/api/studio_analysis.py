@@ -21,6 +21,8 @@ StudioUser = Annotated[CurrentUser, Depends(require_roles("expert", "reviewer", 
 class AnalysisRequest(RequestModel):
     expected_revision: int = Field(ge=1)
     mode: Literal["live", "rehearsal"] = "live"
+    use_course_content: bool = False
+    include_review_notes: bool = True
     source_notes: str | None = Field(default=None, min_length=1, max_length=20000, pattern=r"\S")
 
 
@@ -66,3 +68,13 @@ def publish(
 ):
     with session.begin():
         return service.approve_publish(session, task_id, run_id, req, user, settings)
+
+
+@router.post("/{run_id}/apply")
+def apply_to_draft(task_id: str, run_id: str, req: ApproveRequest, user: StudioUser, session: DB):
+    if req.defer_unanswered:
+        raise AppError(
+            "VALIDATION_ERROR", "Resolve clarifications separately when saving to draft.", 422
+        )
+    with session.begin():
+        return service.save_reviewed(session, task_id, run_id, req, user)

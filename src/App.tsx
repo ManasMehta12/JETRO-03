@@ -33,6 +33,7 @@ import {
 } from './simulation';
 import type { AttemptState, ComponentId, Mode, ScenarioId } from './simulation';
 import { MissionBanner, MissionChecklist, WorkshopTask, WorkshopTray } from './components/WorkshopUI';
+import takumiLogo from './assets/Takumi_Horizontal_Transparent_White.png';
 import { PartArtwork } from './components/PartArtworks';
 import { getMissionProgress } from './mission';
 import { restoreAttempt, serializeAttempt, STORAGE_KEY } from './persistence';
@@ -226,12 +227,7 @@ export default function App({ embedded = false, onAttemptComplete, onContinueToI
       {!embedded && <header className="app-header">
         <div className="header-left">
           <a className="brand" href="#playground" aria-label="Takumi home">
-            <span className="brand-symbol">
-              <Layers3 size={20} />
-            </span>
-            <span className="brand-text">
-              takumi<span className="brand-period">.</span>
-            </span>
+            <img src={takumiLogo} alt="Takumi" className="brand-logo" />
           </a>
           <div className="header-divider" aria-hidden="true" />
           <nav className="module-nav" aria-label="Workspace">
