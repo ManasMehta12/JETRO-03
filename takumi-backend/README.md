@@ -1,7 +1,7 @@
 # Takumi Knowledge Engine
 
 ## Setup
-From `backend/`, Python 3.11+ and uv:
+From `takumi-backend/`, Python 3.11+ and uv:
 ```sh
 uv sync
 ```
@@ -71,7 +71,7 @@ ENABLE_LIVE_EXTRACTION=true
 ENABLE_PROCESSING_WORKER=true
 ```
 No model is selected by default. Model availability and successful live extraction remain unverified.
-Start server and worker in separate terminals from `backend/`, sharing `DATABASE_URL`, `MEDIA_STORAGE_DIR` and configuration:
+Start server and worker in separate terminals from `takumi-backend/`, sharing `DATABASE_URL`, `MEDIA_STORAGE_DIR` and configuration:
 ```sh
 uv run uvicorn app.main:app --port 8000 --no-access-log
 uv run python scripts/run_worker.py
@@ -140,6 +140,7 @@ ENABLE_PROCESSING_WORKER=true
 PROCESSING_PROVIDER_TIMEOUT_SECONDS=300
 PROCESSING_JOB_LEASE_SECONDS=360
 ```
+When whisper-server runs on the same Mac as this backend, use `WHISPER_BASE_URL=http://127.0.0.1:<whisper port>` (for example `http://127.0.0.1:12017`). If the Technical Viva API in `backend/` already uses port 8000, start this server with `--port 8001` and pass `--base-url http://localhost:8001` to `scripts/video_flow.py`.
 `OPENROUTER_MODEL` is a comma-separated fallback list sent as OpenRouter's `models` array: when a model errors (downtime, rate limit), OpenRouter tries the next one. Requests set `provider.require_parameters=true`, so they route only to providers that honor the strict JSON schema. The default list uses free models that advertise structured outputs; keep it `:free`-only (plus `openrouter/free`) to avoid charges. Free models are rate-limited (about 50 requests/day without purchased credits). Output still validates against the application schema; invalid output fails as retryable `AI_RESPONSE_INVALID`. The job's `model_id` records the model that actually answered. OpenRouter receives the transcript, not the original video/audio; transcription stays on the trusted LAN. Real-key availability and extraction quality are unverified.
 
 ## Verification status

@@ -5,17 +5,17 @@ Takumi: expert knowledge capture → reviewed release → apprentice training. T
 ## Layout
 - `markdowns/globals/` — product concept (`Takumi_Final_Concept_and_Three_Person_Technical_Plan.docx`) and the V1 backend master prompt (`takumi_v1_backend_prompt.md`).
 - `markdowns/hackathon/` — feature specs (expert studio, apprentice playground, technical viva) and `openapi/`.
-- `backend/` — FastAPI + SQLite knowledge engine (tasks, drafts, clarifications, evidence, immutable releases, training pack, grounded Q&A).
+- `takumi-backend/` — FastAPI + SQLite knowledge engine (tasks, drafts, clarifications, evidence, immutable releases, training pack, grounded Q&A).
 
 ## Contracts
 - Canonical API contract: `markdowns/hackathon/openapi/API.doc.md`.
 - `markdowns/hackathon/openapi/*.openapi.json` and `build_openapi.py` conflict with it (`/studio/*` prefixes, flat errors, `learner` role, `Idempotency-Key`). Do not implement from them and do not edit them.
-- Backend contract output: `backend/contracts/` (regenerate with `scripts/export_contracts.py`). Deviations from API.doc.md are listed in `backend/docs/INTEGRATION_HANDOFF.md`.
+- Backend contract output: `takumi-backend/contracts/` (regenerate with `scripts/export_contracts.py`). Deviations from API.doc.md are listed in `takumi-backend/docs/INTEGRATION_HANDOFF.md`.
 
 ## Ownership boundary
-`backend/` is the knowledge engine only. No frontend, 3D, scenario, attempt, viva or report code here; teammates mount their own routers in `app/main.py` and reuse `get_current_user` / `require_roles` from `app/core/security.py`.
+`takumi-backend/` is the knowledge engine only. No frontend, 3D, scenario, attempt, viva or report code here; teammates mount their own routers in `app/main.py` and reuse `get_current_user` / `require_roles` from `app/core/security.py`.
 
-## Commands (run from `backend/`)
+## Commands (run from `takumi-backend/`)
 ```sh
 uv sync
 uv run uvicorn app.main:app --reload --port 8000 --no-access-log   # DB auto-created and seeded (approved_baseline)
@@ -53,4 +53,4 @@ Python 3.11 (`.python-version`), managed by uv. Never hand-edit `uv.lock`; use `
 - Contract examples in `contracts/api-examples/` contain generated ids/timestamps; regenerating them produces id churn only.
 
 ## Docs
-`backend/README.md`, `backend/docs/{INTEGRATION_HANDOFF,CHECKPOINTS,V2_CHECKPOINTS,KNOWN_LIMITATIONS}.md`, `backend/{IMPLEMENTATION_PLAN,V2_IMPLEMENTATION_PLAN}.md`.
+`takumi-backend/README.md`, `takumi-backend/docs/{INTEGRATION_HANDOFF,CHECKPOINTS,V2_CHECKPOINTS,KNOWN_LIMITATIONS}.md`, `takumi-backend/{IMPLEMENTATION_PLAN,V2_IMPLEMENTATION_PLAN}.md`.
